@@ -112,7 +112,7 @@ class MicarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             CONF_VID: self._api.vid,
             CONF_CAR_MODEL: self._api.car_model,
         }
-        return self.async_create_entry(title=f"小米汽车 Base {self._username}", data=data)
+        return self.async_create_entry(title=f"小米汽车 {self._username}", data=data)
 
     @staticmethod
     def _random_mobile_id():
