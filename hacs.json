@@ -1,0 +1,9 @@
+{
+  "name": "小米汽车（免费版）",
+  "content_in_root": false,
+  "render_readme": true,
+  "domains": ["micar_base"],
+  "country": ["CN"],
+  "homeassistant": "2023.8.0",
+  "iot_class": "cloud_polling"
+}

@@ -1,0 +1,13 @@
+{
+  "domain": "micar_base",
+  "name": "小米汽车 Base",
+  "codeowners": ["@chhc007"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/chhc007/micar_homeassistant",
+  "iot_class": "cloud_polling",
+  "logo": "logo.png",
+  "loggers": ["custom_components.micar_base"],
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "账号登录",
+        "description": "输入小米汽车账号（手机号）和密码，登录后发送短信验证码。"
+      },
+      "code": {
+        "title": "短信验证码",
+        "description": "验证码已发送到手机（{username}），请输入："
+      }
+    },
+    "abort": {
+      "already_configured": "已配置"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# 敏感文件（绝不上传）
+micar_license.json
+license*.pem
+*.license
+
+# Python
+__pycache__/
+*.pyc
+
+# 编辑器
+.vscode/
+.idea/
