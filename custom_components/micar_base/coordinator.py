@@ -1,6 +1,7 @@
 """数据协调器：定时轮询车辆状态 + passToken 自动续期（Base 版——无 license）。"""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -45,3 +46,30 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 raise UpdateFailed(str(err)) from err
         self.properties = {p.get("iid"): p.get("value") for p in props}
         return self.properties
+
+    async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0) -> bool:
+        """控制操作后确认生效：连续刷新多次，直到 iid 状态符合预期。
+
+        服务端收到控制指令后状态同步有延迟（数秒），立即刷新会拿到旧值，
+        导致 UI 显示与真实状态不符（如解锁后按钮仍显示上锁）。
+        轮询直至命中 expected 集合，或达到重试上限。
+        返回是否确认生效。
+        """
+        for attempt in range(retries):
+            await asyncio.sleep(interval)
+            try:
+                await self.async_request_refresh()
+            except UpdateFailed:
+                _LOGGER.warning("micar 控制确认刷新失败（第 %d 次）", attempt + 1)
+                continue
+            val = self.properties.get(iid)
+            if val is not None:
+                try:
+                    raw = str(val)
+                    numeric = float(raw)
+                    if numeric in expected or raw in expected:
+                        return True
+                except (TypeError, ValueError):
+                    if val in expected:
+                        return True
+        return False

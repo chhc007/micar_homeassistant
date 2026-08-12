@@ -38,11 +38,12 @@ class MicarLock(CoordinatorEntity, LockEntity):
 
     async def async_lock(self, **kwargs) -> None:
         await self.hass.async_add_executor_job(self.coordinator.api.control, LOCK_IID, LOCKED_VALUE)
-        await self.coordinator.async_request_refresh()
+        # 控制后确认生效（服务端状态同步延迟，连续刷新避免 UI 显示旧状态）
+        await self.coordinator.async_confirm_control(LOCK_IID, {float(LOCKED_VALUE)})
 
     async def async_unlock(self, **kwargs) -> None:
         await self.hass.async_add_executor_job(self.coordinator.api.control, LOCK_IID, UNLOCKED_VALUE)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_confirm_control(LOCK_IID, {float(UNLOCKED_VALUE)})
 
     @property
     def device_info(self):

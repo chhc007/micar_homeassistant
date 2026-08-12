@@ -66,13 +66,14 @@ class MicarClimate(CoordinatorEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         value = 1 if hvac_mode != HVACMode.OFF else 0
         await self.hass.async_add_executor_job(self.coordinator.api.control, SWITCH_IID, value)
-        await self.coordinator.async_request_refresh()
+        # 控制后确认生效（服务端状态同步延迟，连续刷新避免 UI 显示旧状态）
+        await self.coordinator.async_confirm_control(SWITCH_IID, {float(value)})
 
     async def async_set_temperature(self, **kwargs) -> None:
         temp = kwargs.get("temperature")
         if temp is not None:
             await self.hass.async_add_executor_job(self.coordinator.api.control, TEMP_IID, float(temp))
-            await self.coordinator.async_request_refresh()
+            await self.coordinator.async_confirm_control(TEMP_IID, {float(temp)})
 
     @property
     def device_info(self):
