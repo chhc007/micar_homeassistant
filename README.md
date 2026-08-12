@@ -1,6 +1,6 @@
 # 小米汽车 Home Assistant 集成
 
-> 把小米汽车（SU7 系列）接入 Home Assistant：实时查看电量、续航、位置，远程控制空调与车门锁。
+> 把小米汽车（全系列）接入 Home Assistant：实时查看电量、续航、位置，远程控制空调与车门锁。
 
 ![HACS](https://img.shields.io/badge/HACS-自定义仓库-41BDF5.svg)
 
