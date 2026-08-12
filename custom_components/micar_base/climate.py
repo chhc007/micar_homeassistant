@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.climate import ClimateEntity, HVACMode
+from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature, HVACMode
 from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -36,6 +36,8 @@ class MicarClimate(CoordinatorEntity, ClimateEntity):
         self._attr_min_temp = MIN_TEMP
         self._attr_max_temp = MAX_TEMP
         self._attr_target_temperature_step = 0.5
+        # 声明支持目标温度调节（否则 HA 不显示温度滑块、不读取 temperature 属性）
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -53,8 +55,8 @@ class MicarClimate(CoordinatorEntity, ClimateEntity):
             return None
 
     @property
-    def temperature(self) -> float | None:
-        """空调设定温度（HA 标准属性名 temperature；target_temperature 不被 HA 读取）。"""
+    def target_temperature(self) -> float | None:
+        """空调设定温度（HA ClimateEntity 标准属性名 target_temperature；读 7.2.3 目标温度）。"""
         val = self.coordinator.properties.get(TEMP_IID)
         try:
             return float(val) if val is not None else None
