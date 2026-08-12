@@ -1,10 +1,10 @@
-"""只读传感器：电量、剩余续航（Free 版核心状态）。"""
+"""只读传感器：电量、续航、四轮胎压、车窗状态（Free 版核心状态）。"""
 from __future__ import annotations
 
 import logging
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
-from homeassistant.const import PERCENTAGE, UnitOfLength
+from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -16,6 +16,14 @@ _LOGGER = logging.getLogger(__name__)
 FREE_SENSORS = [
     ("4.4.1", "battery", "电量", SensorDeviceClass.BATTERY, PERCENTAGE),
     ("4.4.3", "range", "剩余续航", SensorDeviceClass.DISTANCE, UnitOfLength.KILOMETERS),
+    ("9.1.1", "tire_fl", "主驾胎压", SensorDeviceClass.PRESSURE, UnitOfPressure.BAR),
+    ("9.2.1", "tire_fr", "副驾胎压", SensorDeviceClass.PRESSURE, UnitOfPressure.BAR),
+    ("9.3.1", "tire_rl", "左后胎压", SensorDeviceClass.PRESSURE, UnitOfPressure.BAR),
+    ("9.4.1", "tire_rr", "右后胎压", SensorDeviceClass.PRESSURE, UnitOfPressure.BAR),
+    ("5.1.1", "window_fl", "主驾车窗", None, PERCENTAGE),
+    ("5.2.1", "window_fr", "副驾车窗", None, PERCENTAGE),
+    ("5.3.1", "window_rl", "左后车窗", None, PERCENTAGE),
+    ("5.4.1", "window_rr", "右后车窗", None, PERCENTAGE),
 ]
 
 

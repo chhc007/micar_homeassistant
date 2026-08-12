@@ -26,7 +26,7 @@ EP_PROPERTIES = "/mobile/clientbusiness/IcccCarControlService/properties"
 EP_ACTIONS = "/mobile/clientbusiness/IcccCarControlService/actions"
 EP_USER_CAR_LIST = "/mobile/clientbusiness/IcccUserAuthService/getUserCarListV3"
 
-# Free 版轮询 iid（空调 + 电量/续航 + 门锁 + GPS 定位，8 个）
+# Free 版轮询 iid（空调 + 电量/续航 + 门锁 + 胎压 + 车窗 + GPS 定位，16 个）
 FREE_IIDS = [
     "7.1.1",   # 空调开关
     "7.2.3",   # 目标温度
@@ -34,6 +34,14 @@ FREE_IIDS = [
     "4.4.1",   # 电量(%)
     "4.4.3",   # 剩余续航(km)
     "2.1.3",   # 门锁状态
+    "9.1.1",   # 主驾胎压(bar)
+    "9.2.1",   # 副驾胎压(bar)
+    "9.3.1",   # 左后胎压(bar)
+    "9.4.1",   # 右后胎压(bar)
+    "5.1.1",   # 主驾车窗位置(%)
+    "5.2.1",   # 副驾车窗位置(%)
+    "5.3.1",   # 左后车窗位置(%)
+    "5.4.1",   # 右后车窗位置(%)
     "13.1.9",  # 经度
     "13.1.10", # 纬度
 ]
