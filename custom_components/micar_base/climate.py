@@ -53,7 +53,8 @@ class MicarClimate(CoordinatorEntity, ClimateEntity):
             return None
 
     @property
-    def target_temperature(self) -> float | None:
+    def temperature(self) -> float | None:
+        """空调设定温度（HA 标准属性名 temperature；target_temperature 不被 HA 读取）。"""
         val = self.coordinator.properties.get(TEMP_IID)
         try:
             return float(val) if val is not None else None
