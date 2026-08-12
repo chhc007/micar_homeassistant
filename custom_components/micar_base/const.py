@@ -11,7 +11,7 @@ CONF_MOBILE_ID = "mobileId"
 CONF_VID = "vid"
 CONF_CAR_MODEL = "carModel"
 
-DEFAULT_SCAN_INTERVAL = 120  # 秒
+DEFAULT_SCAN_INTERVAL = 20  # 秒（免费版测试期 20s 轮询）
 
 # API
 BASE_URL = "https://mobile.iccc.xiaomiev.com"
