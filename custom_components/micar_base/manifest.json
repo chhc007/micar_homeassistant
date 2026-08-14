@@ -9,5 +9,5 @@
   "logo": "logo.png",
   "loggers": ["custom_components.micar_base"],
   "requirements": [],
-  "version": "0.2.5"
+  "version": "0.2.6"
 }

@@ -41,9 +41,10 @@ class MicarAPI:
         self.device_id = ""  # 用户手机小米汽车 App 的设备 ID（config_flow 必填，续期绑定）
         self.car_model = ""
         # passport 登录会话（CookieJar 自动管理 identity_session 等）
+        # opener 惰性初始化：build_opener 内部加载系统 SSL 证书（阻塞操作），
+        # 不能在事件循环线程执行，须在首次发起请求（executor 线程）时构建
         self._cj = http.cookiejar.CookieJar()
-        self._cj_opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(self._cj))
+        self._cj_opener = None
         self.device_headers = {
             "deviceappversioncode": "26072022",
             "deviceappversionname": "2.7.0",
@@ -59,6 +60,17 @@ class MicarAPI:
         }
 
     # ---------- 内部 HTTP ----------
+    def _ensure_opener(self):
+        """构建 passport 请求 opener（惰性：首次发起请求时才创建）。
+
+        build_opener 内部会加载系统 SSL 证书（load_default_certs），属阻塞操作，
+        必须在 executor 线程执行，不能在事件循环内同步创建。
+        """
+        if self._cj_opener is None:
+            self._cj_opener = urllib.request.build_opener(
+                urllib.request.HTTPCookieProcessor(self._cj))
+        return self._cj_opener
+
     def _request(self, url, data=None, method=None, headers=None, timeout=30):
         h = {"User-Agent": UA}
         if data is not None:
@@ -87,7 +99,7 @@ class MicarAPI:
             h.update(headers)
         req = urllib.request.Request(url, data=data, headers=h)
         try:
-            with self._cj_opener.open(req, timeout=timeout) as resp:
+            with self._ensure_opener().open(req, timeout=timeout) as resp:
                 return resp.status, resp.read().decode(errors="replace"), dict(resp.headers)
         except urllib.error.HTTPError as e:
             return e.code, e.read().decode(errors="replace"), dict(e.headers)
