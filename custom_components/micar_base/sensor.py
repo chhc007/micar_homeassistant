@@ -1,4 +1,4 @@
-"""只读传感器：电量、续航、四轮胎压、车窗状态（Free 版核心状态）。"""
+"""只读传感器：电量、续航、累计里程、档位、四轮胎压、车窗状态（Free 版核心状态）。"""
 from __future__ import annotations
 
 import logging
@@ -7,7 +7,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, SENSOR_VALUE_MAPS
 from .coordinator import MicarDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -16,6 +16,8 @@ _LOGGER = logging.getLogger(__name__)
 FREE_SENSORS = [
     ("4.4.1", "battery", "电量", SensorDeviceClass.BATTERY, PERCENTAGE),
     ("4.4.3", "range", "剩余续航", SensorDeviceClass.DISTANCE, UnitOfLength.KILOMETERS),
+    ("13.2.1", "mileage", "累计里程", SensorDeviceClass.DISTANCE, UnitOfLength.KILOMETERS),
+    ("13.6.1", "gear", "档位", None, None),
     ("9.1.1", "tire_fl", "主驾胎压", SensorDeviceClass.PRESSURE, UnitOfPressure.BAR),
     ("9.2.1", "tire_fr", "副驾胎压", SensorDeviceClass.PRESSURE, UnitOfPressure.BAR),
     ("9.3.1", "tire_rl", "左后胎压", SensorDeviceClass.PRESSURE, UnitOfPressure.BAR),
@@ -49,6 +51,12 @@ class MicarSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         val = self.coordinator.properties.get(self._iid)
+        # 枚举值域映射（如档位 0/1/2/3 → P/R/N/D）
+        if val is not None and self._iid in SENSOR_VALUE_MAPS:
+            try:
+                return SENSOR_VALUE_MAPS[self._iid].get(int(float(val)), val)
+            except (ValueError, TypeError):
+                return val
         try:
             return float(val) if val is not None else None
         except (TypeError, ValueError):

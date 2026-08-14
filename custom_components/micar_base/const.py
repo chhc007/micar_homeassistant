@@ -26,7 +26,7 @@ EP_PROPERTIES = "/mobile/clientbusiness/IcccCarControlService/properties"
 EP_ACTIONS = "/mobile/clientbusiness/IcccCarControlService/actions"
 EP_USER_CAR_LIST = "/mobile/clientbusiness/IcccUserAuthService/getUserCarListV3"
 
-# Free 版轮询 iid（空调 + 电量/续航 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位，17 个）
+# Free 版轮询 iid（空调 + 电量/续航 + 累计里程/档位 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位，20 个）
 FREE_IIDS = [
     "7.1.1",   # 空调开关
     "7.1.4",   # 空调除霜状态
@@ -46,6 +46,8 @@ FREE_IIDS = [
     "5.4.1",   # 右后车窗位置(%)
     "13.1.9",  # 经度
     "13.1.10", # 纬度
+    "13.2.1",  # 累计里程(km)
+    "13.6.1",  # 档位(P/R/N/D)
 ]
 
 # 控制字典（仅 Free 版公开的控制；支持 api.control 路由）
@@ -75,6 +77,12 @@ CONTROL_KNOWN = {
                 "status_iid": "7.1.4"},
 }
 
+# sensor 值域映射（iid → {原始值: 显示文字}）
+SENSOR_VALUE_MAPS = {
+    # 档位 GearStatus：0=P 1=R 2=N 3=D
+    "13.6.1": {0: "P", 1: "R", 2: "N", 3: "D"},
+}
+
 # 实体图标（按名称关键词匹配，mdi）
 ICON_RULES = [
     (("空调",), "mdi:air-conditioner"),
@@ -84,6 +92,8 @@ ICON_RULES = [
     (("鸣笛", "喇叭"), "mdi:bullhorn"),
     (("寻车",), "mdi:map-marker"),
     (("位置",), "mdi:map-marker"),
+    (("里程",), "mdi:counter"),
+    (("档位",), "mdi:car-shift-pattern"),
 ]
 
 
