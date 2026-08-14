@@ -63,7 +63,7 @@
 
 如果这个项目对你有帮助，欢迎请我喝杯咖啡支持一下 ☕ 你的支持是我持续更新的最大动力，感谢每一位用户！
 
-![支付宝收款码](assets/alipay_qr.jpg)
+<img src="assets/alipay_qr.jpg" alt="支付宝收款码" width="240">
 
 ## 说明
 
