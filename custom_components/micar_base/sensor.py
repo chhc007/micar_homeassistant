@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure
@@ -56,10 +57,10 @@ class MicarSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         val = self.coordinator.properties.get(self._iid)
-        # 13.11.5 startLastTime = 毫秒时间戳 → 可读时间
+        # 13.11.5 startLastTime = 毫秒时间戳 → 北京时间显示
         if val is not None and self._iid == "13.11.5":
             try:
-                return datetime.datetime.fromtimestamp(int(float(val)) / 1000).strftime("%Y-%m-%d %H:%M:%S")
+                return datetime.datetime.fromtimestamp(int(float(val)) / 1000, tz=ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S")
             except (ValueError, TypeError, OSError):
                 return val
         # 枚举值域映射（如档位 0/1/2/3 → P/R/N/D）
