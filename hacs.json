@@ -1,5 +1,5 @@
 {
-  "name": "小米汽车（免费版）",
+  "name": "小米汽车集成",
   "content_in_root": false,
   "render_readme": true,
   "domains": ["micar_base"],

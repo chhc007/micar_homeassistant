@@ -2,8 +2,16 @@
   "config": {
     "step": {
       "user": {
-        "title": "Account Login",
+        "title": "Choose Login Mode",
+        "description": "Choose how to log in:\n- **Main account mode**: use the car owner's Xiaomi account, requires the Device ID from the Xiaomi Car app (obtained via traffic capture, see README tutorial)\n- **Shared account mode**: use a Xiaomi account that the owner has shared the car with; the Device ID is generated automatically, no capture needed"
+      },
+      "master": {
+        "title": "Main Account Mode",
         "description": "Enter your Xiaomi car account (phone number), password, and the Device ID from the Xiaomi Car app on your phone. An SMS verification code will be sent."
+      },
+      "shared": {
+        "title": "Shared Account Mode",
+        "description": "Enter the Xiaomi account (phone number) that the owner shared the car with, and its password. The Device ID will be generated automatically (no capture needed). An SMS verification code will be sent."
       },
       "code": {
         "title": "SMS Verification Code",
@@ -11,7 +19,7 @@
       }
     },
     "data_description": {
-      "deviceId": "The Device ID (deviceId) of the Xiaomi Car app on your phone — it must match the app exactly. How to find it: capture traffic (e.g. ProxyPin) while using the app, then look for the mobileId or deviceId value in the request cookie/body. See README for details."
+      "deviceId": "The Device ID (deviceId) of the Xiaomi Car app on your phone — it must match the app exactly. How to find it: capture traffic (e.g. ProxyPin) while using the app, then look for the mobileId or deviceId value in the request cookie/body. See README for details. Not needed in shared account mode (auto-generated)."
     },
     "error": {
       "invalid_device_id": "Invalid Device ID: it must match the Xiaomi Car app on your phone (letters/digits/-/_ characters, e.g. YSFTVmttfxS0t_G-). See README for how to find it."

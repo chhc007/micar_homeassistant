@@ -25,13 +25,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = entry.data
     api.cookies["cUserId"] = data.get(CONF_CUSER_ID, "")
     api.cookies["userId"] = data.get(CONF_USER_ID, "")
-    # 设备 ID：用户填写的手机小米汽车 App deviceId（续期绑定、API mobileId 均用此值）
+    # 设备 ID：主账号模式为用户填写的手机小米汽车 App deviceId；
+    # 共享账号模式为登录时自动生成的 App 风格 deviceId（续期绑定、API mobileId 均用此值）
     api.device_id = data.get(CONF_DEVICE_ID, "")
     if not api.device_id:
         # 旧版配置（v0.2.4 之前）无 deviceId 字段：兜底用原常量并提醒重新配置
         _LOGGER.warning(
             "micar_base 旧版配置缺少设备 ID（deviceId），已临时使用默认值。"
-            "请删除该集成后重新添加，并在配置页面填写手机小米汽车 App 的设备 ID（见 README 抓包教程）"
+            "请删除该集成后重新添加，并按需选择主账号/共享账号模式（见 README 教程）"
         )
         api.device_id = APP_DEVICE_ID
     api.mobile_id = data.get(CONF_MOBILE_ID) or api.device_id

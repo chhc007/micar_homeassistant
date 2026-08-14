@@ -11,6 +11,10 @@ CONF_MOBILE_ID = "mobileId"
 CONF_DEVICE_ID = "deviceId"
 CONF_VID = "vid"
 CONF_CAR_MODEL = "carModel"
+CONF_MODE = "mode"
+# 登录模式：master=主账号（填手机 App 设备 ID）；shared=共享账号（设备 ID 自动生成）
+MODE_MASTER = "master"
+MODE_SHARED = "shared"
 
 DEFAULT_SCAN_INTERVAL = 20  # 秒（免费版测试期 20s 轮询）
 
@@ -18,8 +22,8 @@ DEFAULT_SCAN_INTERVAL = 20  # 秒（免费版测试期 20s 轮询）
 BASE_URL = "https://mobile.iccc.xiaomiev.com"
 PASSPORT_URL = "https://account.xiaomi.com"
 SID = "iccc_app_api"
-# 历史遗留：开发者自己的 App 设备 ID。仅用于旧版配置（缺少用户 deviceId 时）的兜底兼容，
-# 新配置一律使用用户在 config_flow 填写的 deviceId（必须与手机小米汽车 App 一致）。
+# 历史遗留：开发者自己的 App 设备 ID。仅用于旧版配置（缺少 deviceId 时）的兜底兼容。
+# 新配置：主账号模式填写用户手机小米汽车 App 的 deviceId；共享账号模式自动生成 App 风格 deviceId。
 APP_DEVICE_ID = "YSFTVmttfxS0t_G-"
 UA = "Mozilla/5.0 (Linux; Android 16; 2509FPN0BC) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 

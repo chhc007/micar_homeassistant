@@ -1,6 +1,6 @@
 {
   "domain": "micar_base",
-  "name": "小米汽车 Base",
+  "name": "小米汽车集成",
   "codeowners": ["@chhc007"],
   "config_flow": true,
   "dependencies": [],
@@ -9,5 +9,5 @@
   "logo": "logo.png",
   "loggers": ["custom_components.micar_base"],
   "requirements": [],
-  "version": "0.2.6"
+  "version": "0.2.7"
 }

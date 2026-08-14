@@ -14,6 +14,8 @@ import hashlib
 import http.cookiejar
 import json
 import logging
+import random
+import string
 import uuid
 from urllib.parse import urlencode, urlparse, parse_qs, quote
 import urllib.request
@@ -25,6 +27,20 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def generate_device_id() -> str:
+    """生成 App 风格设备 ID（共享账号模式自动生成）。
+
+    格式与手机小米汽车 App 生成的设备 ID 一致（固定前缀 YSFTV + 随机字母数字段
+    + 下划线 + 随机尾段，如 YSFTVmttfxS0t_G-）。服务端据此返回 App 式 280 字符
+    token；格式不符（如 16 位纯随机大写字母）会返回其他类型的 token 被拒。
+    """
+    chars = string.ascii_letters + string.digits
+    rng = random.SystemRandom()
+    body = "".join(rng.choice(chars) for _ in range(8))
+    tail = "".join(rng.choice(chars + "-_") for _ in range(2))
+    return f"YSFTV{body}_{tail}"
 
 
 class MicarAPIError(Exception):
@@ -285,9 +301,14 @@ class MicarAPI:
         return data.get("data") or {}
 
     def get_vehicles_list(self):
-        """车辆列表（ownCarList）"""
+        """车辆列表（ownCarList，自己的车）"""
         data = self.get_vehicles()
         return data.get("ownCarList") or []
+
+    def get_authorized_vehicles_list(self):
+        """被授权共享的车辆列表（authorizedCarList，共享账号模式使用）"""
+        data = self.get_vehicles()
+        return data.get("authorizedCarList") or []
 
     def get_parking_spot(self):
         """查询车位号（/mobile/datasync/widget/parking-spot/query）。

@@ -2,8 +2,16 @@
   "config": {
     "step": {
       "user": {
-        "title": "账号登录",
+        "title": "选择登录模式",
+        "description": "请选择登录方式：\n- **主账号模式**：使用车主本人的小米汽车账号，需填写手机 App 的设备 ID（需抓包获取，见 README 教程）\n- **共享账号模式**：使用车主授权共享的小米账号，设备 ID 自动生成，无需抓包"
+      },
+      "master": {
+        "title": "主账号模式",
         "description": "输入小米汽车账号（手机号）、密码和手机小米汽车 App 的设备 ID，登录后发送短信验证码。"
+      },
+      "shared": {
+        "title": "共享账号模式",
+        "description": "输入车主授权共享的小米账号（手机号）与密码，设备 ID 将自动生成（无需抓包），登录后发送短信验证码。"
       },
       "code": {
         "title": "短信验证码",
@@ -11,7 +19,7 @@
       }
     },
     "data_description": {
-      "deviceId": "手机小米汽车 App 的设备 ID（deviceId），必须与手机 App 一致。获取方法：手机抓包（ProxyPin 等）打开小米汽车 App 任意操作，在请求的 Cookie/请求体中找 mobileId 或 deviceId 字段值；详见 README 教程。"
+      "deviceId": "手机小米汽车 App 的设备 ID（deviceId），必须与手机 App 一致。获取方法：手机抓包（ProxyPin 等）打开小米汽车 App 任意操作，在请求的 Cookie/请求体中找 mobileId 或 deviceId 字段值；详见 README 教程。共享账号模式无需填写（自动生成）。"
     },
     "error": {
       "invalid_device_id": "设备 ID 格式不正确：需与手机小米汽车 App 一致（字母/数字/-/_ 组合，如 YSFTVmttfxS0t_G-），获取方法见 README 抓包教程。"
