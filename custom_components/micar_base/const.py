@@ -8,6 +8,7 @@ CONF_PASS_TOKEN = "passToken"
 CONF_CUSER_ID = "cUserId"
 CONF_USER_ID = "userId"
 CONF_MOBILE_ID = "mobileId"
+CONF_DEVICE_ID = "deviceId"
 CONF_VID = "vid"
 CONF_CAR_MODEL = "carModel"
 
@@ -17,6 +18,8 @@ DEFAULT_SCAN_INTERVAL = 20  # 秒（免费版测试期 20s 轮询）
 BASE_URL = "https://mobile.iccc.xiaomiev.com"
 PASSPORT_URL = "https://account.xiaomi.com"
 SID = "iccc_app_api"
+# 历史遗留：开发者自己的 App 设备 ID。仅用于旧版配置（缺少用户 deviceId 时）的兜底兼容，
+# 新配置一律使用用户在 config_flow 填写的 deviceId（必须与手机小米汽车 App 一致）。
 APP_DEVICE_ID = "YSFTVmttfxS0t_G-"
 UA = "Mozilla/5.0 (Linux; Android 16; 2509FPN0BC) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 

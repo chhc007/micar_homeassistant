@@ -4,7 +4,7 @@
   login_start(username, password) → session（需要验证码）
   login_verify(code, session) → passToken/cUserId/userId
 
-续期：passToken + App 风格 deviceId → 280 字符 App 式 serviceToken。
+续期：passToken + 用户设备 ID（deviceId，必须与手机小米汽车 App 一致）→ 280 字符 App 式 serviceToken。
 查询：subscriptions（iid 属性系统）。控制：properties / actions 双通道。
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ import urllib.request
 import urllib.error
 
 from .const import (
-    BASE_URL, PASSPORT_URL, SID, APP_DEVICE_ID, UA,
+    BASE_URL, PASSPORT_URL, SID, UA,
     EP_SUBSCRIPTIONS, EP_PROPERTIES, EP_ACTIONS, EP_USER_CAR_LIST, EP_PARKING_SPOT,
 )
 
@@ -38,6 +38,7 @@ class MicarAPI:
         self.cookies = {}  # serviceToken/cUserId/mobileId/ph/slh
         self.vid = ""
         self.mobile_id = ""
+        self.device_id = ""  # 用户手机小米汽车 App 的设备 ID（config_flow 必填，续期绑定）
         self.car_model = ""
         # passport 登录会话（CookieJar 自动管理 identity_session 等）
         self._cj = http.cookiejar.CookieJar()
@@ -213,8 +214,19 @@ class MicarAPI:
         }
 
     # ---------- 续期（passToken → 280 token） ----------
-    def refresh_token(self, pass_token, user_id="", device_id=APP_DEVICE_ID):
-        """passToken → serviceLogin → clientSign → 280 token + ph/slh"""
+    def refresh_token(self, pass_token, user_id="", device_id=None):
+        """passToken → serviceLogin → clientSign → 280 token + ph/slh
+
+        device_id 必须为用户手机小米汽车 App 的设备 ID（token 绑定该设备），
+        与 API 请求的 mobileId 保持一致；不传则用 self.device_id（config_flow 填写值）。
+        """
+        if device_id is None:
+            device_id = self.device_id
+        if not device_id:
+            raise MicarAPIError(
+                "未配置设备 ID（deviceId）：请删除集成后重新添加，"
+                "并在配置时填写手机小米汽车 App 的设备 ID（获取方法见 README）"
+            )
         if not user_id:
             user_id = self.cookies.get("userId", "")
         cookie_str = f"passToken={pass_token};userId={user_id};deviceId={device_id}"

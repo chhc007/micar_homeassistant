@@ -8,7 +8,8 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     DOMAIN, CONF_PASS_TOKEN, CONF_CUSER_ID, CONF_USER_ID,
-    CONF_MOBILE_ID, CONF_VID, CONF_CAR_MODEL, FREE_IIDS,
+    CONF_MOBILE_ID, CONF_DEVICE_ID, CONF_VID, CONF_CAR_MODEL, FREE_IIDS,
+    APP_DEVICE_ID,
 )
 from .api import MicarAPI
 from .coordinator import MicarDataUpdateCoordinator
@@ -24,7 +25,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = entry.data
     api.cookies["cUserId"] = data.get(CONF_CUSER_ID, "")
     api.cookies["userId"] = data.get(CONF_USER_ID, "")
-    api.mobile_id = data.get(CONF_MOBILE_ID, "")
+    # 设备 ID：用户填写的手机小米汽车 App deviceId（续期绑定、API mobileId 均用此值）
+    api.device_id = data.get(CONF_DEVICE_ID, "")
+    if not api.device_id:
+        # 旧版配置（v0.2.4 之前）无 deviceId 字段：兜底用原常量并提醒重新配置
+        _LOGGER.warning(
+            "micar_base 旧版配置缺少设备 ID（deviceId），已临时使用默认值。"
+            "请删除该集成后重新添加，并在配置页面填写手机小米汽车 App 的设备 ID（见 README 抓包教程）"
+        )
+        api.device_id = APP_DEVICE_ID
+    api.mobile_id = data.get(CONF_MOBILE_ID) or api.device_id
     api.vid = data.get(CONF_VID, "")
     # 首次同步 token（passToken → 280 token + ph/slh + mobileId）
     try:

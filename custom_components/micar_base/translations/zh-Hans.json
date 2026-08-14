@@ -3,12 +3,18 @@
     "step": {
       "user": {
         "title": "账号登录",
-        "description": "输入小米汽车账号（手机号）和密码，登录后发送短信验证码。"
+        "description": "输入小米汽车账号（手机号）、密码和手机小米汽车 App 的设备 ID，登录后发送短信验证码。"
       },
       "code": {
         "title": "短信验证码",
         "description": "验证码已发送到手机（{username}），请输入："
       }
+    },
+    "data_description": {
+      "deviceId": "手机小米汽车 App 的设备 ID（deviceId），必须与手机 App 一致。获取方法：手机抓包（ProxyPin 等）打开小米汽车 App 任意操作，在请求的 Cookie/请求体中找 mobileId 或 deviceId 字段值；详见 README 教程。"
+    },
+    "error": {
+      "invalid_device_id": "设备 ID 格式不正确：需与手机小米汽车 App 一致（字母/数字/-/_ 组合，如 YSFTVmttfxS0t_G-），获取方法见 README 抓包教程。"
     },
     "abort": {
       "already_configured": "已配置"

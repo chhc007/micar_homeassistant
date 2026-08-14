@@ -3,12 +3,18 @@
     "step": {
       "user": {
         "title": "Account Login",
-        "description": "Enter your Xiaomi car account (phone number) and password. An SMS verification code will be sent."
+        "description": "Enter your Xiaomi car account (phone number), password, and the Device ID from the Xiaomi Car app on your phone. An SMS verification code will be sent."
       },
       "code": {
         "title": "SMS Verification Code",
         "description": "A verification code has been sent to {username}, enter it below:"
       }
+    },
+    "data_description": {
+      "deviceId": "The Device ID (deviceId) of the Xiaomi Car app on your phone — it must match the app exactly. How to find it: capture traffic (e.g. ProxyPin) while using the app, then look for the mobileId or deviceId value in the request cookie/body. See README for details."
+    },
+    "error": {
+      "invalid_device_id": "Invalid Device ID: it must match the Xiaomi Car app on your phone (letters/digits/-/_ characters, e.g. YSFTVmttfxS0t_G-). See README for how to find it."
     },
     "abort": {
       "already_configured": "Already configured"
