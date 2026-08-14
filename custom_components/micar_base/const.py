@@ -25,8 +25,9 @@ EP_SUBSCRIPTIONS = "/mobile/clientbusiness/IcccCarControlService/subscriptions"
 EP_PROPERTIES = "/mobile/clientbusiness/IcccCarControlService/properties"
 EP_ACTIONS = "/mobile/clientbusiness/IcccCarControlService/actions"
 EP_USER_CAR_LIST = "/mobile/clientbusiness/IcccUserAuthService/getUserCarListV3"
+EP_PARKING_SPOT = "/mobile/datasync/widget/parking-spot/query"
 
-# Free 版轮询 iid（空调 + 电量/续航 + 累计里程/档位 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位，20 个）
+# Free 版轮询 iid（空调 + 电量/续航 + 累计里程/档位 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位 + 远程启动状态/时间，22 个）
 FREE_IIDS = [
     "7.1.1",   # 空调开关
     "7.1.4",   # 空调除霜状态
@@ -48,6 +49,8 @@ FREE_IIDS = [
     "13.1.10", # 纬度
     "13.2.1",  # 累计里程(km)
     "13.6.1",  # 档位(P/R/N/D)
+    "13.11.4", # 远程启动状态(0=未启动 1=已启动)
+    "13.11.5", # 最近启动时间(毫秒时间戳)
 ]
 
 # 控制字典（仅 Free 版公开的控制；支持 api.control 路由）
@@ -75,12 +78,17 @@ CONTROL_KNOWN = {
     "13.10.1": {"name": "空调除霜", "channel": "actions", "param": "status", "platform": "switch",
                 "values": {0: "关", 2: "开"},
                 "status_iid": "7.1.4"},
+    # 远程启动（actions 通道，无参数 in:[]）；状态回读 13.11.4 remoteBootStatus（0=未启动 1=已启动）
+    "13.11.3": {"name": "远程启动", "channel": "actions", "platform": "button",
+                "values": {1: "启动"}},
 }
 
 # sensor 值域映射（iid → {原始值: 显示文字}）
 SENSOR_VALUE_MAPS = {
     # 档位 GearStatus：0=P 1=R 2=N 3=D
     "13.6.1": {0: "P", 1: "R", 2: "N", 3: "D"},
+    # 远程启动状态 RemoteBootStatus：0=未启动 1=已启动
+    "13.11.4": {0: "未启动", 1: "已启动"},
 }
 
 # 实体图标（按名称关键词匹配，mdi）
@@ -94,6 +102,8 @@ ICON_RULES = [
     (("位置",), "mdi:map-marker"),
     (("里程",), "mdi:counter"),
     (("档位",), "mdi:car-shift-pattern"),
+    (("启动",), "mdi:power"),
+    (("车位",), "mdi:parking"),
 ]
 
 

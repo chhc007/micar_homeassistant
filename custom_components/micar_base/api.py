@@ -21,7 +21,7 @@ import urllib.error
 
 from .const import (
     BASE_URL, PASSPORT_URL, SID, APP_DEVICE_ID, UA,
-    EP_SUBSCRIPTIONS, EP_PROPERTIES, EP_ACTIONS, EP_USER_CAR_LIST,
+    EP_SUBSCRIPTIONS, EP_PROPERTIES, EP_ACTIONS, EP_USER_CAR_LIST, EP_PARKING_SPOT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -264,6 +264,23 @@ class MicarAPI:
         """车辆列表（ownCarList）"""
         data = self.get_vehicles()
         return data.get("ownCarList") or []
+
+    def get_parking_spot(self):
+        """查询车位号（/mobile/datasync/widget/parking-spot/query）。
+
+        请求体需 camelCase：{vid, deviceAppVersion, deviceModel, deviceOsType, deviceOsVersion, deviceVendor}
+        响应 data.parkingSpotNumber，如 "11-016"。
+        """
+        body = {
+            "vid": self.vid,
+            "deviceAppVersion": self.device_headers.get("deviceappversion", "2.7.0"),
+            "deviceModel": self.device_headers.get("devicemodel", "2509FPN0BC"),
+            "deviceOsType": "android",
+            "deviceOsVersion": self.device_headers.get("deviceosversion", "BP2A.250605.031.A3"),
+            "deviceVendor": self.device_headers.get("devicevendor", "Xiaomi"),
+        }
+        data = self._api_post(EP_PARKING_SPOT, body)
+        return data.get("data") or {}
 
     def query_status(self, iids):
         """查询车辆状态（subscriptions）"""

@@ -36,6 +36,8 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         self.car_model = car_model
         self.control_known = CONTROL_KNOWN
         self.properties: dict[str, object] = {}
+        # 车位号（独立端点 parking-spot/query，主轮询一并更新；失败不影响主状态）
+        self.parking_spot: str | None = None
 
     async def _async_update_data(self) -> dict:
         try:
@@ -53,6 +55,14 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             else:
                 raise UpdateFailed(str(err)) from err
         self.properties = {p.get("iid"): p.get("value") for p in props}
+        # 车位号（独立端点，失败只告警，不影响主状态回读）
+        try:
+            parking = await self.hass.async_add_executor_job(self.api.get_parking_spot)
+            spot = (parking or {}).get("parkingSpotNumber")
+            if spot is not None:
+                self.parking_spot = str(spot)
+        except Exception as err:  # noqa: BLE001 - 车位号失败不影响主状态
+            _LOGGER.debug("车位号查询失败（忽略）: %s", err)
         return self.properties
 
     async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0) -> bool:
