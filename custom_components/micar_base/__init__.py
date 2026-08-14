@@ -1,4 +1,4 @@
-"""micar_base 集成入口：空调 + GPS 定位（无 license、无统计）。"""
+"""micar_base 集成入口：状态查询 + 远程控制（无 license、无统计）。"""
 from __future__ import annotations
 
 import logging
@@ -15,7 +15,7 @@ from .coordinator import MicarDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["climate", "device_tracker", "sensor", "lock"]
+PLATFORMS = ["climate", "device_tracker", "sensor", "lock", "switch", "select", "button"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

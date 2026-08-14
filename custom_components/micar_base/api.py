@@ -286,11 +286,18 @@ class MicarAPI:
         channel = item.get("channel", "properties")
         request_id = str(uuid.uuid4()) + "-mobile"
         if channel == "actions":
+            # actions 通道请求体需包含 vid 与设备字段（与 App 请求一致），缺失会导致指令不被执行
             body = {
-                "mobileId": self.mobile_id,
-                "requestId": request_id,
                 "iid": iid,
                 "in": ([{"name": item.get("param", ""), "value": value}] if item.get("param") else []),
+                "mobileId": self.mobile_id,
+                "requestId": request_id,
+                "vid": self.vid,
+                "deviceAppVersion": self.device_headers.get("deviceappversion", "2.7.0"),
+                "deviceModel": self.device_headers.get("devicemodel", "2509FPN0BC"),
+                "deviceOsType": "android",
+                "deviceOsVersion": self.device_headers.get("deviceosversion", "BP2A.250605.031.A3"),
+                "deviceVendor": self.device_headers.get("devicevendor", "Xiaomi"),
             }
             return self._api_post(EP_ACTIONS, body)
         body = {

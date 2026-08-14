@@ -8,10 +8,17 @@ from datetime import timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, CONTROL_KNOWN
 from .api import MicarAPI, MicarAPIError
 
 _LOGGER = logging.getLogger(__name__)
+
+# 车窗位置 iid（车窗控制 5.5.1 的状态回读/确认源；5.5.1 本身是纯控制 iid，不在订阅列表）
+WINDOW_POSITION_IIDS = ("5.1.1", "5.2.1", "5.3.1", "5.4.1")
+# 车窗控制 5.5.1 position 发送值 → 车窗状态标签
+WINDOW_POSITION_LABELS = {0: "全关", 1: "通风", 8: "全开"}
+# position → 四车窗位置百分比区间（全关≈0、通风≈10-20、全开≈100，区间留余量）
+WINDOW_POSITION_BANDS = {0: (0, 2), 1: (3, 45), 8: (95, 100)}
 
 
 class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
@@ -27,6 +34,7 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         self.iids = iids
         self.pass_token = pass_token
         self.car_model = car_model
+        self.control_known = CONTROL_KNOWN
         self.properties: dict[str, object] = {}
 
     async def _async_update_data(self) -> dict:
@@ -72,4 +80,41 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 except (TypeError, ValueError):
                     if val in expected:
                         return True
+        return False
+
+    def window_position_state(self) -> str | None:
+        """由四车窗位置百分比（5.1.1-5.4.1）推导车窗控制状态：全关/通风/全开。
+
+        任一车窗缺失、非法、或四窗未全部落入同一区间（如单窗半开）→ None（不误导）。
+        区间见 WINDOW_POSITION_BANDS。
+        """
+        vals = []
+        for iid in WINDOW_POSITION_IIDS:
+            v = self.properties.get(iid)
+            # 仅接受数值型（订阅返回 JSON number）；缺失/非数值 → 不判定
+            if not isinstance(v, (int, float)):
+                return None
+            vals.append(float(v))
+        for position, (lo, hi) in WINDOW_POSITION_BANDS.items():
+            if all(lo <= v <= hi for v in vals):
+                return WINDOW_POSITION_LABELS[position]
+        return None
+
+    async def async_confirm_windows(self, position: int, retries: int = 3, interval: float = 5.0) -> bool:
+        """车窗控制（5.5.1）确认：5.5.1 无自身状态回读，轮询四车窗位置 5.1.1-5.4.1
+
+        落入 position 对应区间即确认生效（position: 0=全关 1=通风 8=全开）。
+        """
+        if position not in WINDOW_POSITION_BANDS:
+            return False
+        label = WINDOW_POSITION_LABELS[position]
+        for attempt in range(retries):
+            await asyncio.sleep(interval)
+            try:
+                await self.async_request_refresh()
+            except UpdateFailed:
+                _LOGGER.warning("micar_base 车窗控制确认刷新失败（第 %d 次）", attempt + 1)
+                continue
+            if self.window_position_state() == label:
+                return True
         return False

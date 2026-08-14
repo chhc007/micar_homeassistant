@@ -1,4 +1,4 @@
-"""常量：API 端点、配置键（Base 版——精简，无 control/license）。"""
+"""常量：API 端点、配置键（Base 版——精简）。"""
 
 DOMAIN = "micar_base"
 CONF_USERNAME = "username"
@@ -26,9 +26,10 @@ EP_PROPERTIES = "/mobile/clientbusiness/IcccCarControlService/properties"
 EP_ACTIONS = "/mobile/clientbusiness/IcccCarControlService/actions"
 EP_USER_CAR_LIST = "/mobile/clientbusiness/IcccUserAuthService/getUserCarListV3"
 
-# Free 版轮询 iid（空调 + 电量/续航 + 门锁 + 胎压 + 车窗 + GPS 定位，16 个）
+# Free 版轮询 iid（空调 + 电量/续航 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位，17 个）
 FREE_IIDS = [
     "7.1.1",   # 空调开关
+    "7.1.4",   # 空调除霜状态
     "7.2.3",   # 目标温度
     "7.2.1",   # 车内温度
     "4.4.1",   # 电量(%)
@@ -47,18 +48,36 @@ FREE_IIDS = [
 ]
 
 # 控制字典（仅 Free 版公开的控制；支持 api.control 路由）
-# ⚠️ 值域来自 App 枚举（2026-08-12 确认）：
-#   DoorLockStatus（门锁）: 1=解锁 2=锁定
-#   OperateSwitchStatus（空调）: 0=CLOSE 1=OPEN
 CONTROL_KNOWN = {
     "7.1.1": {"name": "空调开关", "channel": "properties", "values": {0: "关", 1: "开"}},
     "7.2.3": {"name": "目标温度", "channel": "properties", "values": {}},
     "2.1.3": {"name": "车门锁", "channel": "properties", "values": {1: "解锁", 2: "锁定"}},
+    # 寻车（actions 通道，workMode）：闪灯 / 鸣笛两种动作
+    "13.1.1": {"name": "寻车", "channel": "actions", "param": "workMode", "platform": "button",
+               "values": {1: "闪灯", 3: "鸣笛"},
+               "buttons": [
+                   {"name": "寻车闪灯", "value": 1},
+                   {"name": "寻车鸣笛", "value": 3},
+               ]},
+    # 车窗控制（actions 通道，position）：0=全关 1=通风 8=全开；
+    # 无自身状态回读，select 状态由四车窗位置（5.1.1-5.4.1）推导（status_mode=windows）
+    "5.5.1": {"name": "车窗控制", "channel": "actions", "param": "position", "platform": "select",
+              "values": {0: "全关", 1: "通风", 8: "全开"},
+              "status_mode": "windows"},
+    # 空调除霜（actions 通道，status）：0=关 2=开；无自身状态回读，
+    # switch 状态由 7.1.4 hvacDefrostStatus 反映（status_iid）
+    "13.10.1": {"name": "空调除霜", "channel": "actions", "param": "status", "platform": "switch",
+                "values": {0: "关", 2: "开"},
+                "status_iid": "7.1.4"},
 }
 
 # 实体图标（按名称关键词匹配，mdi）
 ICON_RULES = [
     (("空调",), "mdi:air-conditioner"),
+    (("车窗", "窗"), "mdi:car-side"),
+    (("除霜",), "mdi:car-defrost-front"),
+    (("鸣笛", "喇叭"), "mdi:bullhorn"),
+    (("寻车",), "mdi:map-marker"),
     (("位置",), "mdi:map-marker"),
 ]
 
