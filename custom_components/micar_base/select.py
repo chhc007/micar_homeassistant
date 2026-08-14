@@ -27,8 +27,9 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
         super().__init__(coordinator)
         self._iid = iid
         item = coordinator.control_known[iid]
-        self._attr_name = item["name"]
-        self._attr_unique_id = f"micar_base_select_{iid}"
+        # 实体名带车牌后缀（多车不重名）；旧条目无车牌 → 原名不变
+        self._attr_name = f"{item['name']} {coordinator.plate_suffix}".strip()
+        self._attr_unique_id = f"micar_base_select_{iid}{coordinator.uid_suffix}"
         from .const import icon_for_name
         self._attr_icon = icon_for_name(item["name"])
 
@@ -62,4 +63,4 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
 
     @property
     def device_info(self):
-        return {"identifiers": {(DOMAIN, "car")}, "name": "小米汽车", "manufacturer": "Xiaomi", "model": "SU7"}
+        return self.coordinator.device_info

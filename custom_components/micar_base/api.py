@@ -301,9 +301,23 @@ class MicarAPI:
         return data.get("data") or {}
 
     def get_vehicles_list(self):
-        """车辆列表（ownCarList，自己的车）"""
+        """全部车辆列表（ownCarList + authorizedCarList 合并）。
+
+        自己的车与被授权共享的车全部返回，每辆带 _source 标注来源
+        （own=自己的车 / authorized=被授权共享的车），供配置流程选车。
+        deliveryingCarList（交付中）不包含——车辆未交付不可控。
+        """
         data = self.get_vehicles()
-        return data.get("ownCarList") or []
+        cars = []
+        for car in data.get("ownCarList") or []:
+            item = dict(car)
+            item["_source"] = "own"
+            cars.append(item)
+        for car in data.get("authorizedCarList") or []:
+            item = dict(car)
+            item["_source"] = "authorized"
+            cars.append(item)
+        return cars
 
     def get_authorized_vehicles_list(self):
         """被授权共享的车辆列表（authorizedCarList，共享账号模式使用）"""

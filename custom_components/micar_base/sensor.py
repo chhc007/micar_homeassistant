@@ -47,8 +47,9 @@ class MicarSensor(CoordinatorEntity, SensorEntity):
                  name: str, dev_cls, unit):
         super().__init__(coordinator)
         self._iid = iid
-        self._attr_name = name
-        self._attr_unique_id = f"micar_base_sensor_{key}"
+        # 实体名带车牌后缀（多车不重名）；旧条目无车牌 → 原名不变
+        self._attr_name = f"{name} {coordinator.plate_suffix}".strip()
+        self._attr_unique_id = f"micar_base_sensor_{key}{coordinator.uid_suffix}"
         self._attr_device_class = dev_cls
         self._attr_native_unit_of_measurement = unit
         from .const import icon_for_name
@@ -76,7 +77,7 @@ class MicarSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def device_info(self):
-        return {"identifiers": {(DOMAIN, "car")}, "name": "小米汽车", "manufacturer": "Xiaomi", "model": "SU7"}
+        return self.coordinator.device_info
 
 
 class MicarParkingSpotSensor(CoordinatorEntity, SensorEntity):
@@ -86,8 +87,8 @@ class MicarParkingSpotSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         from .const import icon_for_name
         self._attr_icon = icon_for_name("车位号")
-        self._attr_unique_id = "micar_base_sensor_parking_spot"
-        self._attr_name = "车位号"
+        self._attr_unique_id = f"micar_base_sensor_parking_spot{coordinator.uid_suffix}"
+        self._attr_name = f"车位号 {coordinator.plate_suffix}".strip()
 
     @property
     def native_value(self):
@@ -95,4 +96,4 @@ class MicarParkingSpotSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def device_info(self):
-        return {"identifiers": {(DOMAIN, "car")}, "name": "小米汽车", "manufacturer": "Xiaomi", "model": "SU7"}
+        return self.coordinator.device_info

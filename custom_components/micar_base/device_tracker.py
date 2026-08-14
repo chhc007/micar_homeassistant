@@ -26,8 +26,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class MicarDeviceTracker(CoordinatorEntity, TrackerEntity):
     def __init__(self, coordinator: MicarDataUpdateCoordinator):
         super().__init__(coordinator)
+        # has_entity_name：设备名（小米汽车 + 车牌）自动拼接，实体名保持简短
         self._attr_name = "车辆位置"
-        self._attr_unique_id = "micar_base_tracker_location"
+        self._attr_unique_id = f"micar_base_tracker_location{coordinator.uid_suffix}"
         from .const import icon_for_name
         self._attr_icon = icon_for_name("车辆位置")
 
@@ -55,4 +56,4 @@ class MicarDeviceTracker(CoordinatorEntity, TrackerEntity):
 
     @property
     def device_info(self):
-        return {"identifiers": {(DOMAIN, "car")}, "name": "小米汽车", "manufacturer": "Xiaomi", "model": "SU7"}
+        return self.coordinator.device_info

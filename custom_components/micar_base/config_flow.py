@@ -19,7 +19,7 @@ from homeassistant.data_entry_flow import FlowResult
 from .const import (
     DOMAIN, CONF_USERNAME, CONF_PASSWORD, CONF_CODE, CONF_DEVICE_ID, CONF_MODE,
     CONF_PASS_TOKEN, CONF_CUSER_ID, CONF_USER_ID, CONF_MOBILE_ID, CONF_VID,
-    CONF_CAR_MODEL, MODE_MASTER, MODE_SHARED,
+    CONF_CAR_MODEL, CONF_CAR_PLATE, CONF_CAR_NAME, MODE_MASTER, MODE_SHARED,
 )
 from .api import MicarAPI, MicarAPIError, generate_device_id
 
@@ -68,6 +68,8 @@ class MicarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._username = ""
         self._creds = {}
         self._mode = MODE_MASTER
+        # 车辆列表（ownCarList + authorizedCarList 合并，每辆带 _source）
+        self._cars = []
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """第一步：选择登录模式（主账号 / 共享账号）。"""
@@ -156,10 +158,11 @@ class MicarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _finish(self, creds: dict) -> FlowResult:
-        """保存凭据 → 换 token → 探测车辆 → 完成配置。
+        """保存凭据 → 换 token → 探测全部车辆 → 选车（多车时）→ 完成配置。
 
-        车辆探测兼容两种账号：优先 ownCarList（自己的车），为空再取
-        authorizedCarList（被授权共享的车，共享账号模式车辆在此）。
+        车辆列表为 ownCarList + authorizedCarList 合并（自己的车 + 被授权共享的车），
+        全部可选。单车自动选中；多车弹出选车步骤，每辆车一个配置条目，
+        添加多辆车 = 重复"添加集成"流程选择不同的车。
         """
         try:
             if not creds:
@@ -175,27 +178,79 @@ class MicarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._api.mobile_id = self._api.device_id
             self._api.cookies["mobileId"] = self._api.mobile_id
 
-            cars = await self.hass.async_add_executor_job(self._api.get_vehicles_list)
-            if not cars:
-                cars = await self.hass.async_add_executor_job(
-                    self._api.get_authorized_vehicles_list)
-            if not cars:
+            self._cars = await self.hass.async_add_executor_job(
+                self._api.get_vehicles_list)
+            if not self._cars:
                 raise MicarAPIError("未找到车辆（请确认账号已绑定车辆，或车主已在 App 中授权共享）")
-            self._api.vid = cars[0].get("vid", "")
-            car_model = cars[0].get("carModel", "") or cars[0].get("carName", "")
-            self._api.car_model = car_model
+            # cUserId 兜底取续期结果（旧逻辑 tokens 优先）
+            creds = dict(creds)
+            creds.setdefault("cUserId", tokens.get("cUserId", ""))
+            self._creds = creds
         except MicarAPIError as err:
             return self.async_abort(reason=str(err))
+
+        if len(self._cars) == 1:
+            return await self._create_entry(self._cars[0])
+        return await self.async_step_car()
+
+    @staticmethod
+    def _car_label(car: dict) -> str:
+        """车辆选项显示名：车牌 + 车名（被授权共享的车标注来源）。"""
+        plate = car.get("carPlate", "") or ""
+        name = car.get("carName", "") or car.get("carModel", "") or ""
+        label = f"{plate} {name}".strip() or car.get("vid", "")
+        if car.get("_source") == "authorized":
+            label += "（共享）"
+        return label
+
+    async def async_step_car(self, user_input: dict | None = None) -> FlowResult:
+        """选车步骤：列出账号下全部车辆（自己的 + 共享授权的），用户选一辆添加。
+
+        每辆车一个配置条目：添加多辆车需重复"添加集成"流程，每次选不同的车。
+        """
+        errors = {}
+        if user_input is not None:
+            vid = user_input.get(CONF_VID)
+            car = next((c for c in self._cars if c.get("vid") == vid), None)
+            if car is None:
+                errors["base"] = "所选车辆无效，请重试"
+            else:
+                return await self._create_entry(car)
+        options = {c["vid"]: self._car_label(c) for c in self._cars if c.get("vid")}
+        schema = vol.Schema({vol.Required(CONF_VID): vol.In(options)})
+        return self.async_show_form(
+            step_id="car", data_schema=schema, errors=errors,
+            description_placeholders={"count": str(len(self._cars))},
+        )
+
+    async def _create_entry(self, car: dict) -> FlowResult:
+        """按选定的车辆创建配置条目（vid 唯一标识该车）。"""
+        # 同一辆车已添加过 → 中止（避免 unique_id 冲突）
+        vid = car.get("vid", "")
+        for entry in self._async_current_entries():
+            if entry.data.get(CONF_VID) == vid:
+                return self.async_abort(
+                    reason="already_configured",
+                    description_placeholders={"car": self._car_label(car)},
+                )
+        self._api.vid = vid
+        car_model = car.get("carModel", "") or car.get("carName", "")
+        self._api.car_model = car_model
+        creds = self._creds
 
         data = {
             CONF_USERNAME: self._username,
             CONF_MODE: self._mode,
-            CONF_PASS_TOKEN: pass_token,
-            CONF_CUSER_ID: tokens.get("cUserId") or creds.get("cUserId", ""),
+            CONF_PASS_TOKEN: creds.get("passToken", ""),
+            CONF_CUSER_ID: creds.get("cUserId", ""),
             CONF_USER_ID: creds.get("userId", ""),
             CONF_DEVICE_ID: self._api.device_id,
             CONF_MOBILE_ID: self._api.mobile_id,
             CONF_VID: self._api.vid,
-            CONF_CAR_MODEL: self._api.car_model,
+            CONF_CAR_MODEL: car_model,
+            CONF_CAR_PLATE: car.get("carPlate", ""),
+            CONF_CAR_NAME: car.get("carName", ""),
         }
-        return self.async_create_entry(title=f"小米汽车 {self._username}", data=data)
+        # 条目标题：车牌优先，无车牌用车名（多车条目可区分）
+        title = car.get("carPlate", "") or car.get("carName", "") or self._username
+        return self.async_create_entry(title=f"小米汽车 {title}", data=data)

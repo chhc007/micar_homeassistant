@@ -11,6 +11,8 @@ CONF_MOBILE_ID = "mobileId"
 CONF_DEVICE_ID = "deviceId"
 CONF_VID = "vid"
 CONF_CAR_MODEL = "carModel"
+CONF_CAR_PLATE = "carPlate"
+CONF_CAR_NAME = "carName"
 CONF_MODE = "mode"
 # 登录模式：master=主账号（填手机 App 设备 ID）；shared=共享账号（设备 ID 自动生成）
 MODE_MASTER = "master"

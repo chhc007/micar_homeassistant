@@ -16,6 +16,10 @@
       "code": {
         "title": "短信验证码",
         "description": "验证码已发送到手机（{username}），请输入："
+      },
+      "car": {
+        "title": "选择要添加的车辆",
+        "description": "账号下共 {count} 辆车（含自己的车与被授权共享的车）。请选择要添加到 Home Assistant 的车辆。如需添加多辆车，完成本次添加后再次进入「添加集成」，选择另一辆车即可。"
       }
     },
     "data_description": {
@@ -25,7 +29,7 @@
       "invalid_device_id": "设备 ID 格式不正确：需与手机小米汽车 App 一致（字母/数字/-/_ 组合，如 YSFTVmttfxS0t_G-），获取方法见 README 抓包教程。"
     },
     "abort": {
-      "already_configured": "已配置"
+      "already_configured": "车辆 {car} 已添加过，请勿重复添加（如需添加其他车辆，请在选车页选择另一辆）"
     }
   }
 }

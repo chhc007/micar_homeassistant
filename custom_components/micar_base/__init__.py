@@ -8,7 +8,8 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     DOMAIN, CONF_PASS_TOKEN, CONF_CUSER_ID, CONF_USER_ID,
-    CONF_MOBILE_ID, CONF_DEVICE_ID, CONF_VID, CONF_CAR_MODEL, FREE_IIDS,
+    CONF_MOBILE_ID, CONF_DEVICE_ID, CONF_VID, CONF_CAR_MODEL,
+    CONF_CAR_PLATE, CONF_CAR_NAME, FREE_IIDS,
     APP_DEVICE_ID,
 )
 from .api import MicarAPI
@@ -50,7 +51,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     iids = list(FREE_IIDS)
 
     coordinator = MicarDataUpdateCoordinator(
-        hass, api, iids, data.get(CONF_PASS_TOKEN, ""), car_model=car_model)
+        hass, api, iids, data.get(CONF_PASS_TOKEN, ""), car_model=car_model,
+        car_plate=data.get(CONF_CAR_PLATE, ""), car_name=data.get(CONF_CAR_NAME, ""))
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 

@@ -36,9 +36,14 @@ class MicarButton(CoordinatorEntity, ButtonEntity):
         item = coordinator.control_known[iid]
         # 按钮动作取第一个可用值；多按钮条目（buttons 列表）显式指定 value/name
         self._value = value if value is not None else next(iter(item["values"]))
-        self._attr_name = name or item["name"]
+        # 实体名带车牌后缀（多车不重名）；旧条目无车牌 → 原名不变
+        self._attr_name = f"{name or item['name']} {coordinator.plate_suffix}".strip()
         # 多值按钮（同一 iid 多个动作）unique_id 带值区分
-        self._attr_unique_id = f"micar_base_button_{iid}" if value is None else f"micar_base_button_{iid}_{value}"
+        self._attr_unique_id = (
+            f"micar_base_button_{iid}{coordinator.uid_suffix}"
+            if value is None
+            else f"micar_base_button_{iid}_{value}{coordinator.uid_suffix}"
+        )
         from .const import icon_for_name
         self._attr_icon = icon_for_name(self._attr_name)
 
@@ -48,4 +53,4 @@ class MicarButton(CoordinatorEntity, ButtonEntity):
 
     @property
     def device_info(self):
-        return {"identifiers": {(DOMAIN, "car")}, "name": "小米汽车", "manufacturer": "Xiaomi", "model": "SU7"}
+        return self.coordinator.device_info

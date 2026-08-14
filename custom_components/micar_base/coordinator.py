@@ -25,7 +25,7 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
     """获取并缓存车辆状态（properties by iid）。401 时自动续期。"""
 
     def __init__(self, hass: HomeAssistant, api: MicarAPI, iids: list[str], pass_token: str,
-                 car_model: str = ""):
+                 car_model: str = "", car_plate: str = "", car_name: str = ""):
         super().__init__(
             hass, _LOGGER, name=DOMAIN,
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
@@ -34,10 +34,63 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         self.iids = iids
         self.pass_token = pass_token
         self.car_model = car_model
+        self.car_plate = car_plate
+        self.car_name = car_name
         self.control_known = CONTROL_KNOWN
         self.properties: dict[str, object] = {}
         # 车位号（独立端点 parking-spot/query，主轮询一并更新；失败不影响主状态）
         self.parking_spot: str | None = None
+
+    @property
+    def vid(self) -> str:
+        """当前车辆 vid（配置条目按 vid 区分，多车不冲突）。"""
+        return self.api.vid
+
+    @property
+    def plate_suffix(self) -> str:
+        """实体名车牌后缀：车牌优先，无车牌用车名（旧条目无此字段 → 空，原名不变）。"""
+        return self.car_plate or self.car_name or ""
+
+    @property
+    def is_new_entry(self) -> bool:
+        """是否为 v0.2.8+ 新条目（带车牌/车名字段）。
+
+        旧条目（升级前添加）保持原 unique_id 与设备注册，实体不重建；
+        新条目启用 vid 后缀与按车设备，多车互不冲突。
+        """
+        return bool(self.plate_suffix)
+
+    @property
+    def uid_suffix(self) -> str:
+        """unique_id 后缀（_vid）：仅新条目启用；旧条目留空保持原 id。"""
+        return f"_{self.vid}" if self.is_new_entry else ""
+
+    @property
+    def device_name(self) -> str:
+        """设备名（每车一个 device）：小米汽车 + 车牌。"""
+        suffix = self.plate_suffix
+        return f"小米汽车 {suffix}" if suffix else "小米汽车"
+
+    @property
+    def device_info(self) -> dict:
+        """设备注册信息。
+
+        新条目 identifiers 按 vid 区分（多车各占一个设备）；
+        旧条目保持原 (DOMAIN, "car") 标识，升级不重建设备。
+        """
+        if self.is_new_entry:
+            return {
+                "identifiers": {(DOMAIN, self.vid)},
+                "name": self.device_name,
+                "manufacturer": "Xiaomi",
+                "model": self.car_model or "SU7",
+            }
+        return {
+            "identifiers": {(DOMAIN, "car")},
+            "name": "小米汽车",
+            "manufacturer": "Xiaomi",
+            "model": "SU7",
+        }
 
     async def _async_update_data(self) -> dict:
         try:
