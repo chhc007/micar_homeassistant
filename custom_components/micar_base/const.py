@@ -35,6 +35,7 @@ FREE_IIDS = [
     "4.4.1",   # 电量(%)
     "4.4.3",   # 剩余续航(km)
     "2.1.3",   # 门锁状态
+    "2.8.3",   # 电动后备箱状态
     "9.1.1",   # 主驾胎压(bar)
     "9.2.1",   # 副驾胎压(bar)
     "9.3.1",   # 左后胎压(bar)
@@ -52,6 +53,9 @@ CONTROL_KNOWN = {
     "7.1.1": {"name": "空调开关", "channel": "properties", "values": {0: "关", 1: "开"}},
     "7.2.3": {"name": "目标温度", "channel": "properties", "values": {}},
     "2.1.3": {"name": "车门锁", "channel": "properties", "values": {1: "解锁", 2: "锁定"}},
+    # 电动后备箱（properties 通道）：0=关 6=开启；2.8.3 在 FREE_IIDS 订阅列表内，select 直接回读状态
+    "2.8.3": {"name": "电动后备箱", "channel": "properties", "platform": "select",
+              "values": {0: "关", 6: "开启"}},
     # 寻车（actions 通道，workMode）：闪灯 / 鸣笛两种动作
     "13.1.1": {"name": "寻车", "channel": "actions", "param": "workMode", "platform": "button",
                "values": {1: "闪灯", 3: "鸣笛"},
@@ -75,6 +79,7 @@ CONTROL_KNOWN = {
 ICON_RULES = [
     (("空调",), "mdi:air-conditioner"),
     (("车窗", "窗"), "mdi:car-side"),
+    (("后备箱", "箱"), "mdi:car-back"),
     (("除霜",), "mdi:car-defrost-front"),
     (("鸣笛", "喇叭"), "mdi:bullhorn"),
     (("寻车",), "mdi:map-marker"),

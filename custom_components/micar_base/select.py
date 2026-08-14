@@ -1,4 +1,4 @@
-"""选择实体：多档位控制（车窗控制 5.5.1，actions 通道，position 0=全关 1=通风 8=全开）。"""
+"""选择实体：多档位控制（电动后备箱 2.8.3 直接回读；车窗控制 5.5.1，actions 通道，position 0=全关 1=通风 8=全开）。"""
 from __future__ import annotations
 
 import logging
@@ -16,7 +16,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator: MicarDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
     for iid, item in coordinator.control_known.items():
-        # 仅创建显式声明 platform=select 的控制（如 5.5.1 车窗控制）
+        # 仅创建显式声明 platform=select 的控制（如 2.8.3 电动后备箱、5.5.1 车窗控制）
         if item.get("platform") == "select":
             entities.append(MicarSelect(coordinator, iid))
     async_add_entities(entities)
