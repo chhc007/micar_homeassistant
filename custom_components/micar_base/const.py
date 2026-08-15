@@ -33,6 +33,7 @@ UA = "Mozilla/5.0 (Linux; Android 16; 2509FPN0BC) AppleWebKit/537.36 (KHTML, lik
 EP_SUBSCRIPTIONS = "/mobile/clientbusiness/IcccCarControlService/subscriptions"
 EP_PROPERTIES = "/mobile/clientbusiness/IcccCarControlService/properties"
 EP_ACTIONS = "/mobile/clientbusiness/IcccCarControlService/actions"
+EP_REFRESH_RESULTS = "/mobile/clientbusiness/IcccCarControlService/refreshResults"
 EP_USER_CAR_LIST = "/mobile/clientbusiness/IcccUserAuthService/getUserCarListV3"
 EP_PARKING_SPOT = "/mobile/datasync/widget/parking-spot/query"
 

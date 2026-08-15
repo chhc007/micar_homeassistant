@@ -23,7 +23,8 @@ import urllib.error
 
 from .const import (
     BASE_URL, PASSPORT_URL, SID, UA,
-    EP_SUBSCRIPTIONS, EP_PROPERTIES, EP_ACTIONS, EP_USER_CAR_LIST, EP_PARKING_SPOT,
+    EP_SUBSCRIPTIONS, EP_PROPERTIES, EP_ACTIONS, EP_REFRESH_RESULTS,
+    EP_USER_CAR_LIST, EP_PARKING_SPOT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -387,6 +388,39 @@ class MicarAPI:
             "deviceVendor": self.device_headers["devicevendor"],
         }
         return self._api_post(EP_PROPERTIES, body)
+
+    def refresh_results(self, iids):
+        """控制后定向刷新（refreshResults 端点）：返回 {iid: value}，失败返回 None。
+
+        与 App 抓包一致：body 同 control 调用的 device 字段 + iids 列表，无 requestId。
+        响应 data.iids 为 [{iid, value, timestamp}]，逐项转 dict 返回
+        （value 保留原始类型 int/float/str，忽略 timestamp）。云端状态同步 <1s，
+        用于控制确认与补偿刷新的快路径（替代 subscriptions 全量，避免 20-45s 延迟）。
+        """
+        body = {
+            "iids": list(iids),
+            "mobileId": self.mobile_id,
+            "vid": self.vid,
+            "deviceAppVersion": self.device_headers["deviceappversion"],
+            "deviceModel": self.device_headers["devicemodel"],
+            "deviceOsType": "android",
+            "deviceOsVersion": self.device_headers["deviceosversion"],
+            "deviceVendor": self.device_headers["devicevendor"],
+        }
+        try:
+            data = self._api_post(EP_REFRESH_RESULTS, body)
+        except MicarAPIError as err:
+            _LOGGER.debug("refreshResults 请求失败: %s", err)
+            return None
+        payload = (data or {}).get("data") or {}
+        iids_list = payload.get("iids") if isinstance(payload, dict) else None
+        if not isinstance(iids_list, list):
+            return None
+        return {
+            str(it.get("iid")): it.get("value")
+            for it in iids_list
+            if isinstance(it, dict) and it.get("iid") is not None
+        }
 
     def _api_post(self, path, body):
         """API POST（无 license 校验——Base 版直接放行）。"""

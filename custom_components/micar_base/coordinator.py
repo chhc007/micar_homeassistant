@@ -40,6 +40,10 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         self.properties: dict[str, object] = {}
         # 车位号（独立端点 parking-spot/query，主轮询一并更新；失败不影响主状态）
         self.parking_spot: str | None = None
+        # 补偿刷新防抖标记（控制确认失败后 +5/+15/+30s 补偿刷新计划是否排队中）
+        self._refresh_pending = False
+        # 最近一次控制确认失败时记录的目标 iid 列表（补偿刷新复用，定向 refreshResults）
+        self._last_confirm_iids: list[str] = []
 
     @property
     def vid(self) -> str:
@@ -118,32 +122,111 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             _LOGGER.debug("车位号查询失败（忽略）: %s", err)
         return self.properties
 
-    async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0) -> bool:
-        """控制操作后确认生效：连续刷新多次，直到 iid 状态符合预期。
+    async def _refresh_iids(self, iids: list[str]) -> bool:
+        """定向刷新：优先 refreshResults 端点（快，<1s），失败回退 subscriptions 全量。
 
-        服务端收到控制指令后状态同步有延迟（数秒），立即刷新会拿到旧值，
-        导致 UI 显示与真实状态不符（如解锁后按钮仍显示上锁）。
-        轮询直至命中 expected 集合，或达到重试上限。
-        返回是否确认生效。
+        成功 → 把返回的 {iid: value} 合并进 self.properties 并 async_update_listeners()
+        通知实体刷新；refreshResults 失败/返回 None → 回退一次 async_request_refresh()
+        （subscriptions 全量兜底）。返回是否刷新成功（任一方式）。
         """
-        for attempt in range(retries):
+        try:
+            result = await self.hass.async_add_executor_job(self.api.refresh_results, iids)
+        except Exception as err:  # noqa: BLE001 - 网络/解析异常统一走回退
+            _LOGGER.debug("micar_base refreshResults 异常（iids=%s）: %s", iids, err)
+            result = None
+        if result:
+            self.properties.update(result)
+            self.async_update_listeners()
+            return True
+        # 回退：subscriptions 全量兜底（refreshResults 失败或无数据）
+        try:
+            await self.async_request_refresh()
+            return True
+        except UpdateFailed as err:
+            _LOGGER.warning("micar_base 定向刷新失败且全量回退失败（iids=%s）: %s", iids, err)
+            return False
+
+    async def _poll_confirm(self, iid: str, check, retries: int = 3, interval: float = 5.0,
+                           refresh_iids: list[str] | None = None) -> tuple[bool, int]:
+        """控制确认共享轮询：先立即刷新检查一次（快路径）→ 未达预期再按 interval 轮询至多 retries 次。
+
+        小米服务端收到控制指令后状态同步有延迟（数秒），立即刷新可能拿到旧值，
+        导致 UI 显示与真实状态不符（如解锁后按钮仍显示上锁）。
+        刷新优先走 _refresh_iids（refreshResults 定向，快），不再每次全量 subscriptions。
+        refresh_iids 缺省为 [iid]（纯控制 iid 如车窗 5.5.1 无回读时，由调用方传入
+        实际回读 iid 列表，如 WINDOW_POSITION_IIDS）。
+        返回 (是否确认, 尝试次数)；失败刷新同样消耗一次尝试（与原行为一致）。
+        """
+        if refresh_iids is None:
+            refresh_iids = [iid]
+        ok = False
+        attempts = 0
+        # 快路径：控制后立即定向刷新检查（不 sleep）
+        await self._refresh_iids(refresh_iids)
+        attempts = 1
+        ok = check()
+        while not ok and attempts <= retries:
             await asyncio.sleep(interval)
+            await self._refresh_iids(refresh_iids)
+            attempts += 1
+            ok = check()
+        return ok, attempts
+
+    async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0) -> bool:
+        """控制操作后确认生效：立即刷新检查（快路径）→ 未达预期再轮询重试。"""
+
+        def _matches(val: object) -> bool:
+            if val is None:
+                return False
             try:
-                await self.async_request_refresh()
-            except UpdateFailed:
-                _LOGGER.warning("micar 控制确认刷新失败（第 %d 次）", attempt + 1)
-                continue
-            val = self.properties.get(iid)
-            if val is not None:
+                raw = str(val)
+                numeric = float(raw)
+                return numeric in expected or raw in expected
+            except (TypeError, ValueError):
+                return val in expected
+
+        ok, _ = await self._poll_confirm(iid, lambda: _matches(self.properties.get(iid)), retries, interval)
+        if not ok:
+            # 确认失败 = 云端状态同步慢，用补偿刷新兜底（保证实体最迟约 1 分钟内更新到真实状态）
+            self._last_confirm_iids = [iid]
+            self.schedule_control_refresh()
+        return ok
+
+    def schedule_control_refresh(self, delay_after: float = 30.0) -> None:
+        """控制确认失败后的补偿刷新：+5s / +15s / +30s 各排一次状态刷新。
+
+        用于确认失败（云端状态同步慢）兜底，保证实体最迟约 1 分钟内更新到真实状态。
+        防抖：已有未执行的补偿刷新计划时跳过（多个平台连续控制不重复排一堆刷新）。
+        补偿刷新复用 _refresh_iids（refreshResults 定向 + subscriptions 兜底），
+        目标 iid 取 self._last_confirm_iids（确认失败时已记录），失败仅告警、不阻塞不抛异常。
+        """
+        if self._refresh_pending:
+            _LOGGER.debug("micar_base 补偿刷新计划已在排队，跳过重复排定")
+            return
+        self._refresh_pending = True
+
+        async def _refresh() -> None:
+            iids = self._last_confirm_iids
+            if iids:
+                await self._refresh_iids(iids)
+            else:
+                # 兜底：无记录目标 iid 时全量刷新（防御性分支，正常不会走到）
                 try:
-                    raw = str(val)
-                    numeric = float(raw)
-                    if numeric in expected or raw in expected:
-                        return True
-                except (TypeError, ValueError):
-                    if val in expected:
-                        return True
-        return False
+                    await self.async_request_refresh()
+                except UpdateFailed as err:
+                    _LOGGER.warning("micar_base 补偿刷新失败: %s", err)
+
+        delays = (5.0, 15.0, delay_after)
+        for idx, delay in enumerate(delays):
+            final = idx == len(delays) - 1
+
+            def _fire(*_args, _final: bool = final) -> None:
+                # 最后一个刷新点触发时解除防抖标记，允许后续控制重新排补偿
+                if _final:
+                    self._refresh_pending = False
+                self.hass.async_create_task(_refresh())
+
+            self.hass.async_call_later(delay, _fire)
 
     def window_position_state(self) -> str | None:
         """由四车窗位置百分比（5.1.1-5.4.1）推导车窗控制状态：全关/通风/全开。
@@ -171,13 +254,11 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         if position not in WINDOW_POSITION_BANDS:
             return False
         label = WINDOW_POSITION_LABELS[position]
-        for attempt in range(retries):
-            await asyncio.sleep(interval)
-            try:
-                await self.async_request_refresh()
-            except UpdateFailed:
-                _LOGGER.warning("micar_base 车窗控制确认刷新失败（第 %d 次）", attempt + 1)
-                continue
-            if self.window_position_state() == label:
-                return True
-        return False
+        ok, _ = await self._poll_confirm(
+            "5.5.1", lambda: self.window_position_state() == label, retries, interval,
+            refresh_iids=list(WINDOW_POSITION_IIDS))
+        if not ok:
+            # 车窗确认失败同样走补偿刷新兜底（与 async_confirm_control 一致）
+            self._last_confirm_iids = list(WINDOW_POSITION_IIDS)
+            self.schedule_control_refresh()
+        return ok
