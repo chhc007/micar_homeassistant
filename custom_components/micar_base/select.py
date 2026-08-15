@@ -53,13 +53,12 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
         if value is None:
             return
         await self.hass.async_add_executor_job(self.coordinator.api.control, self._iid, value)
+        warn_msg = f"micar_base 选择控制 {self._iid}（{self._attr_name}）指令已发送但状态未确认"
         if self._status_mode == "windows":
-            # 车窗控制确认：轮询四车窗位置落入对应区间（5.5.1 无自身状态回读）
-            ok = await self.coordinator.async_confirm_windows(value)
+            # 车窗控制确认：后台轮询四车窗位置落入对应区间（5.5.1 无自身状态回读）
+            self.coordinator.schedule_confirm_windows(value, warn_msg=warn_msg)
         else:
-            ok = await self.coordinator.async_confirm_control(self._iid, {value})
-        if not ok:
-            _LOGGER.warning("micar_base 选择控制 %s（%s）指令已发送但状态未确认", self._iid, self._attr_name)
+            self.coordinator.schedule_confirm_control(self._iid, {value}, warn_msg=warn_msg)
 
     @property
     def device_info(self):

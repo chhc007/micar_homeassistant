@@ -16,6 +16,7 @@ import json
 import logging
 import random
 import string
+import time
 import uuid
 from urllib.parse import urlencode, urlparse, parse_qs, quote
 import urllib.request
@@ -362,6 +363,7 @@ class MicarAPI:
         item = CONTROL_KNOWN.get(iid, {})
         channel = item.get("channel", "properties")
         request_id = str(uuid.uuid4()) + "-mobile"
+        _start = time.time()
         if channel == "actions":
             # actions 通道请求体需包含 vid 与设备字段（与 App 请求一致），缺失会导致指令不被执行
             body = {
@@ -376,18 +378,21 @@ class MicarAPI:
                 "deviceOsVersion": self.device_headers.get("deviceosversion", "BP2A.250605.031.A3"),
                 "deviceVendor": self.device_headers.get("devicevendor", "Xiaomi"),
             }
-            return self._api_post(EP_ACTIONS, body)
-        body = {
-            "mobileId": self.mobile_id,
-            "params": [{"iid": iid, "value": value, "vid": self.vid}],
-            "requestId": request_id,
-            "deviceAppVersion": self.device_headers["deviceappversion"],
-            "deviceModel": self.device_headers["devicemodel"],
-            "deviceOsType": "android",
-            "deviceOsVersion": self.device_headers["deviceosversion"],
-            "deviceVendor": self.device_headers["devicevendor"],
-        }
-        return self._api_post(EP_PROPERTIES, body)
+            result = self._api_post(EP_ACTIONS, body)
+        else:
+            body = {
+                "mobileId": self.mobile_id,
+                "params": [{"iid": iid, "value": value, "vid": self.vid}],
+                "requestId": request_id,
+                "deviceAppVersion": self.device_headers["deviceappversion"],
+                "deviceModel": self.device_headers["devicemodel"],
+                "deviceOsType": "android",
+                "deviceOsVersion": self.device_headers["deviceosversion"],
+                "deviceVendor": self.device_headers["devicevendor"],
+            }
+            result = self._api_post(EP_PROPERTIES, body)
+        _LOGGER.debug("control iid=%s 耗时=%.1fms", iid, (time.time() - _start) * 1000)
+        return result
 
     def refresh_results(self, iids):
         """控制后定向刷新（refreshResults 端点）：返回 {iid: value}，失败返回 None。

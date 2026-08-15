@@ -59,14 +59,16 @@ class MicarSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         await self.hass.async_add_executor_job(self.coordinator.api.control, self._iid, self._on_value)
-        # 控制后确认生效（服务端状态同步延迟，连续刷新避免 UI 显示旧状态）
-        if not await self.coordinator.async_confirm_control(self._status_iid, {float(self._on_value)}):
-            _LOGGER.warning("micar_base 开关 %s（%s）开启指令已发送但状态未确认", self._iid, self._attr_name)
+        # 控制后后台确认生效（不阻塞服务返回；服务端状态同步延迟，后台刷新避免 UI 显示旧状态）
+        self.coordinator.schedule_confirm_control(
+            self._status_iid, {float(self._on_value)},
+            warn_msg=f"micar_base 开关 {self._iid}（{self._attr_name}）开启指令已发送但状态未确认")
 
     async def async_turn_off(self, **kwargs):
         await self.hass.async_add_executor_job(self.coordinator.api.control, self._iid, self._off_value)
-        if not await self.coordinator.async_confirm_control(self._status_iid, {float(self._off_value)}):
-            _LOGGER.warning("micar_base 开关 %s（%s）关闭指令已发送但状态未确认", self._iid, self._attr_name)
+        self.coordinator.schedule_confirm_control(
+            self._status_iid, {float(self._off_value)},
+            warn_msg=f"micar_base 开关 {self._iid}（{self._attr_name}）关闭指令已发送但状态未确认")
 
     @property
     def device_info(self):

@@ -147,11 +147,13 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             return False
 
     async def _poll_confirm(self, iid: str, check, retries: int = 3, interval: float = 5.0,
-                           refresh_iids: list[str] | None = None) -> tuple[bool, int]:
-        """控制确认共享轮询：先立即刷新检查一次（快路径）→ 未达预期再按 interval 轮询至多 retries 次。
+                           refresh_iids: list[str] | None = None,
+                           confirm_delay: float = 2.0) -> tuple[bool, int]:
+        """控制确认共享轮询：延迟 confirm_delay 后定向刷新检查 → 未达预期再按 interval 轮询至多 retries 次。
 
-        小米服务端收到控制指令后状态同步有延迟（数秒），立即刷新可能拿到旧值，
+        小米服务端收到控制指令后状态同步有延迟（数秒），立即刷新大概率拿到旧值，
         导致 UI 显示与真实状态不符（如解锁后按钮仍显示上锁）。
+        首查前 sleep confirm_delay 让云端状态传播、减少首查失败，总确认时间压到 ~2-3s；
         刷新优先走 _refresh_iids（refreshResults 定向，快），不再每次全量 subscriptions。
         refresh_iids 缺省为 [iid]（纯控制 iid 如车窗 5.5.1 无回读时，由调用方传入
         实际回读 iid 列表，如 WINDOW_POSITION_IIDS）。
@@ -161,7 +163,9 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             refresh_iids = [iid]
         ok = False
         attempts = 0
-        # 快路径：控制后立即定向刷新检查（不 sleep）
+        # 首查延迟：控制指令下发后云端状态传播需数秒，先 sleep 减少首查失败
+        if confirm_delay:
+            await asyncio.sleep(confirm_delay)
         await self._refresh_iids(refresh_iids)
         attempts = 1
         ok = check()
@@ -172,8 +176,9 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             ok = check()
         return ok, attempts
 
-    async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0) -> bool:
-        """控制操作后确认生效：立即刷新检查（快路径）→ 未达预期再轮询重试。"""
+    async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0,
+                                    confirm_delay: float = 2.0) -> bool:
+        """控制操作后确认生效：延迟 confirm_delay 后刷新检查 → 未达预期再轮询重试。"""
 
         def _matches(val: object) -> bool:
             if val is None:
@@ -185,7 +190,8 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             except (TypeError, ValueError):
                 return val in expected
 
-        ok, _ = await self._poll_confirm(iid, lambda: _matches(self.properties.get(iid)), retries, interval)
+        ok, _ = await self._poll_confirm(iid, lambda: _matches(self.properties.get(iid)),
+                                         retries, interval, confirm_delay=confirm_delay)
         if not ok:
             # 确认失败 = 云端状态同步慢，用补偿刷新兜底（保证实体最迟约 1 分钟内更新到真实状态）
             self._last_confirm_iids = [iid]
@@ -246,7 +252,8 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 return WINDOW_POSITION_LABELS[position]
         return None
 
-    async def async_confirm_windows(self, position: int, retries: int = 3, interval: float = 5.0) -> bool:
+    async def async_confirm_windows(self, position: int, retries: int = 3, interval: float = 5.0,
+                                    confirm_delay: float = 2.0) -> bool:
         """车窗控制（5.5.1）确认：5.5.1 无自身状态回读，轮询四车窗位置 5.1.1-5.4.1
 
         落入 position 对应区间即确认生效（position: 0=全关 1=通风 8=全开）。
@@ -256,9 +263,34 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         label = WINDOW_POSITION_LABELS[position]
         ok, _ = await self._poll_confirm(
             "5.5.1", lambda: self.window_position_state() == label, retries, interval,
-            refresh_iids=list(WINDOW_POSITION_IIDS))
+            refresh_iids=list(WINDOW_POSITION_IIDS), confirm_delay=confirm_delay)
         if not ok:
             # 车窗确认失败同样走补偿刷新兜底（与 async_confirm_control 一致）
             self._last_confirm_iids = list(WINDOW_POSITION_IIDS)
             self.schedule_control_refresh()
         return ok
+
+    def schedule_confirm_control(self, iid: str, expected: set, warn_msg: str | None = None) -> None:
+        """后台确认控制生效（不阻塞服务方法返回）。
+
+        服务方法调用 api.control 后立即返回，确认放到后台任务执行（async_confirm_control）；
+        确认失败时记录 warning（若提供 warn_msg），补偿刷新兜底仍由 async_confirm_control
+        内部处理。
+        """
+
+        async def _confirm() -> None:
+            ok = await self.async_confirm_control(iid, expected)
+            if not ok and warn_msg:
+                _LOGGER.warning(warn_msg)
+
+        self.hass.async_create_task(_confirm())
+
+    def schedule_confirm_windows(self, position: int, warn_msg: str | None = None) -> None:
+        """后台确认车窗控制生效（不阻塞服务方法返回），失败记录 warning。"""
+
+        async def _confirm() -> None:
+            ok = await self.async_confirm_windows(position)
+            if not ok and warn_msg:
+                _LOGGER.warning(warn_msg)
+
+        self.hass.async_create_task(_confirm())
