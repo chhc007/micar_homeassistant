@@ -40,9 +40,18 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
         self._attr_icon = icon_for_name(item["name"])
 
         self._value_map = item["values"]
-        self._attr_options = list(self._value_map.values())
-        # 电动后备箱（2.8.3）：current_option 用完整显示映射（含过渡值），options 保持终态（只可选「关/开启」）
+        # 电动后备箱（2.8.3）：current_option 用完整显示映射（含过渡值）。HA SelectEntity 要求
+        # current_option ∈ options，否则过渡期实体显示 unknown → options 必须包含所有过渡显示值。
+        # 终态（关/开启）在前、过渡显示值在后；选中过渡值不触发控制（async_select_option 用终态
+        # value_map 查找，找不到即 return）。其他 select 的 current_option 用终态 value_map，options 不变。
         self._display_map = BACKBOX_DISPLAY_MAP if iid == BACKBOX_ELECTRIC_IID else self._value_map
+        if iid == BACKBOX_ELECTRIC_IID:
+            self._attr_options = list(self._value_map.values()) + [
+                label for label in self._display_map.values()
+                if label not in self._value_map.values()
+            ]
+        else:
+            self._attr_options = list(self._value_map.values())
 
         # 车窗控制（5.5.1）是纯控制 iid，无自身状态回读 → 状态由四车窗位置 5.1.1-5.4.1 推导
         self._status_mode = item.get("status_mode")
