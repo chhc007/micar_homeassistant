@@ -11,6 +11,7 @@ from .const import (
     BACKBOX_ELECTRIC_IID,
     BACKBOX_DISPLAY_MAP,
     BACKBOX_CONFIRM_EXPECTED,
+    BACKBOX_TRANSITION_VALUES,
 )
 from .coordinator import MicarDataUpdateCoordinator
 
@@ -60,6 +61,13 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
         if value is None:
             return
         await self.hass.async_add_executor_job(self.coordinator.api.control, self._iid, value)
+        # 电动后备箱（2.8.3）过渡期云端无值（~20s）→ 本地乐观置过渡值，避免 select 显示 unknown；
+        # 开→5 正在开启 / 关→2 正在关闭；后台 confirm/轮询拿到终态 6/0 后覆盖。
+        if self._iid == BACKBOX_ELECTRIC_IID:
+            transitional = BACKBOX_TRANSITION_VALUES.get(value)
+            if transitional is not None:
+                self.coordinator.properties[self._iid] = transitional
+                self.coordinator.async_update_listeners()
         warn_msg = f"micar_base 选择控制 {self._iid}（{self._attr_name}）指令已发送但状态未确认"
         if self._status_mode == "windows":
             # 车窗控制确认：后台轮询四车窗位置落入对应区间（5.5.1 无自身状态回读）

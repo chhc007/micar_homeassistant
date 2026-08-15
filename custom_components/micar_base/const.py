@@ -117,6 +117,15 @@ BACKBOX_CONFIRM_EXPECTED = {
     0: {0, 2, 3},
 }
 
+# 电动后备箱（2.8.3）控制后本地乐观过渡值（终态值 → 过渡值）。
+#   选「开启」value=6 → 5（正在开启）；选「关」value=0 → 2（正在关闭）。
+#   过渡期云端不返回 2.8.3（运动 ~20s），本地先置过渡值避免 select 显示 unknown；
+#   云端终态 6/0 返回后覆盖（见 select.py / coordinator.py）。
+BACKBOX_TRANSITION_VALUES = {
+    6: 5,   # 开启 → 正在开启
+    0: 2,   # 关 → 正在关闭
+}
+
 # sensor 值域映射（iid → {原始值: 显示文字}）
 SENSOR_VALUE_MAPS = {
     # 档位 GearStatus：0=P 1=R 2=N 3=D

@@ -111,7 +111,15 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                     raise UpdateFailed(f"续期失败: {err2}") from err2
             else:
                 raise UpdateFailed(str(err)) from err
-        self.properties = {p.get("iid"): p.get("value") for p in props}
+        # 合并而非重建：云端过渡期不返回的 iid（如电动后备箱 2.8.3 运动 ~20s 无值）保留本地
+        # 乐观过渡值（select 控制后置入），待终态返回后再覆盖，避免 select 短暂显示 unknown。
+        # 跳过 value=None 的项，防止无值项把本地过渡值清掉。
+        incoming = {
+            p.get("iid"): p.get("value")
+            for p in props
+            if p.get("value") is not None
+        }
+        self.properties.update(incoming)
         # 车位号（独立端点，失败只告警，不影响主状态回读）
         try:
             parking = await self.hass.async_add_executor_job(self.api.get_parking_spot)
