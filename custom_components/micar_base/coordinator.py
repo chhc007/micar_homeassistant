@@ -143,7 +143,7 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             _LOGGER.debug("micar_base refreshResults 异常（iids=%s）: %s", iids, err)
             result = None
         if result:
-            self.properties.update(result)
+            self.properties.update({k: v for k, v in result.items() if v is not None})
             self.async_update_listeners()
             return True
         # 回退：subscriptions 全量兜底（refreshResults 失败或无数据）
