@@ -6,7 +6,12 @@ import logging
 from homeassistant.components.select import SelectEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    BACKBOX_ELECTRIC_IID,
+    BACKBOX_DISPLAY_MAP,
+    BACKBOX_CONFIRM_EXPECTED,
+)
 from .coordinator import MicarDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,6 +40,8 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
 
         self._value_map = item["values"]
         self._attr_options = list(self._value_map.values())
+        # 电动后备箱（2.8.3）：current_option 用完整显示映射（含过渡值），options 保持终态（只可选「关/开启」）
+        self._display_map = BACKBOX_DISPLAY_MAP if iid == BACKBOX_ELECTRIC_IID else self._value_map
 
         # 车窗控制（5.5.1）是纯控制 iid，无自身状态回读 → 状态由四车窗位置 5.1.1-5.4.1 推导
         self._status_mode = item.get("status_mode")
@@ -46,7 +53,7 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
         val = self.coordinator.properties.get(self._iid)
         if val is None:
             return None
-        return self._value_map.get(int(val))
+        return self._display_map.get(int(val))
 
     async def async_select_option(self, option: str, **kwargs):
         value = next((v for v, label in self._value_map.items() if label == option), None)
@@ -58,7 +65,12 @@ class MicarSelect(CoordinatorEntity, SelectEntity):
             # 车窗控制确认：后台轮询四车窗位置落入对应区间（5.5.1 无自身状态回读）
             self.coordinator.schedule_confirm_windows(value, warn_msg=warn_msg)
         else:
-            self.coordinator.schedule_confirm_control(self._iid, {value}, warn_msg=warn_msg)
+            if self._iid == BACKBOX_ELECTRIC_IID:
+                # 电动后备箱（2.8.3）有过渡状态，放宽确认期望（开方向 {6,5,4}、关方向 {0,2,3}）
+                expected = BACKBOX_CONFIRM_EXPECTED.get(value, {value})
+            else:
+                expected = {value}
+            self.coordinator.schedule_confirm_control(self._iid, expected, warn_msg=warn_msg)
 
     @property
     def device_info(self):

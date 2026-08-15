@@ -93,6 +93,30 @@ CONTROL_KNOWN = {
                 "values": {1: "启动"}},
 }
 
+# 电动后备箱 iid（2.8.3，properties 通道，select 直接回读状态）
+BACKBOX_ELECTRIC_IID = "2.8.3"
+
+# 电动后备箱（2.8.3）过渡状态显示映射（current_option 用，与终态 options 分离）。
+# 逆向值域 PowerOperatedBackBoxSwitch：CLOSE=0, OPEN_ONLY_AREA=1, POT_CLOSING=2,
+#   POT_CLOSE_STOP=3, POT_OPEN_STOP=4, POT_OPENING=5, OPEN=6。
+# 1=仅开启区域（少见）归入「开启中」，避免 current_option 返回 None 使实体变「未知」。
+BACKBOX_DISPLAY_MAP = {
+    0: "关",
+    1: "开启中",
+    2: "正在关闭",
+    3: "关闭停止",
+    4: "开启停止",
+    5: "正在开启",
+    6: "开启",
+}
+
+# 电动后备箱（2.8.3）控制后确认期望放宽：指令已生效即视为成功，允许运动/停止过渡态。
+# 开方向（value=6）：{OPEN, POT_OPENING, POT_OPEN_STOP}；关方向（value=0）：{CLOSE, POT_CLOSING, POT_CLOSE_STOP}。
+BACKBOX_CONFIRM_EXPECTED = {
+    6: {6, 5, 4},
+    0: {0, 2, 3},
+}
+
 # sensor 值域映射（iid → {原始值: 显示文字}）
 SENSOR_VALUE_MAPS = {
     # 档位 GearStatus：0=P 1=R 2=N 3=D
