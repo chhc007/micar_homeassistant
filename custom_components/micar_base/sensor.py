@@ -30,6 +30,8 @@ FREE_SENSORS = [
     ("5.4.1", "window_rr", "右后车窗", None, PERCENTAGE),
     ("13.11.4", "remote_boot_status", "远程启动状态", None, None),
     ("13.11.5", "start_last_time", "最近启动时间", None, None),
+    # 电动后备箱状态（2.8.3 只读，过渡状态文字映射见 SENSOR_VALUE_MAPS）
+    ("2.8.3", "backbox_status", "电动后备箱状态", None, None),
 ]
 
 

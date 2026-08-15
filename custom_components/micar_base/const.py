@@ -68,8 +68,9 @@ CONTROL_KNOWN = {
     "7.1.1": {"name": "空调开关", "channel": "properties", "values": {0: "关", 1: "开"}},
     "7.2.3": {"name": "目标温度", "channel": "properties", "values": {}},
     "2.1.3": {"name": "车门锁", "channel": "properties", "values": {1: "解锁", 2: "锁定"}},
-    # 电动后备箱（properties 通道）：0=关 6=开启；2.8.3 在 FREE_IIDS 订阅列表内，select 直接回读状态
-    "2.8.3": {"name": "电动后备箱", "channel": "properties", "platform": "select",
+    # 电动后备箱（properties 通道）：0=关 6=开启；2.8.3 在 FREE_IIDS 订阅列表内。
+    # switch 开关（turn_on 开 / turn_off 关）+ 只读 sensor 状态，见 switch.py / sensor.py。
+    "2.8.3": {"name": "电动后备箱", "channel": "properties", "platform": "switch",
               "values": {0: "关", 6: "开启"}},
     # 寻车（actions 通道，workMode）：闪灯 / 鸣笛两种动作
     "13.1.1": {"name": "寻车", "channel": "actions", "param": "workMode", "platform": "button",
@@ -132,6 +133,8 @@ SENSOR_VALUE_MAPS = {
     "13.6.1": {0: "P", 1: "R", 2: "N", 3: "D"},
     # 远程启动状态 RemoteBootStatus：0=未启动 1=已启动
     "13.11.4": {0: "未启动", 1: "已启动"},
+    # 电动后备箱状态（2.8.3 只读 sensor「电动后备箱状态」）：过渡状态显示文字
+    "2.8.3": BACKBOX_DISPLAY_MAP,
 }
 
 # 实体图标（按名称关键词匹配，mdi）
