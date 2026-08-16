@@ -1,4 +1,4 @@
-"""开关实体：开关类控制（空调除霜 13.10.1，actions 通道；电动后备箱 2.8.3，properties 通道）。"""
+"""开关实体：开关类控制（空调极速制冷 7.7.13 / 制热 7.7.12、电动后备箱 2.8.3，properties 通道；空调除霜 13.10.1，actions 通道）。"""
 from __future__ import annotations
 
 import logging
@@ -67,16 +67,29 @@ class MicarSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         await self.hass.async_add_executor_job(self.coordinator.api.control, self._iid, self._on_value)
-        # 控制后后台确认生效（不阻塞服务返回；服务端状态同步延迟，后台刷新避免 UI 显示旧状态）
+        # 乐观置值：本地立即置意图状态，UI 立即显示 on；confirm 快速刷新（refreshResults）随后覆盖真实状态
+        self._apply_optimistic(self._on_value)
         self.coordinator.schedule_confirm_control(
             self._status_iid, {float(self._on_value)},
             warn_msg=f"micar_base 开关 {self._iid}（{self._attr_name}）开启指令已发送但状态未确认")
 
     async def async_turn_off(self, **kwargs):
         await self.hass.async_add_executor_job(self.coordinator.api.control, self._iid, self._off_value)
+        # 乐观置值：本地立即置意图状态，UI 立即显示 off；confirm 快速刷新（refreshResults）随后覆盖真实状态
+        self._apply_optimistic(self._off_value)
         self.coordinator.schedule_confirm_control(
             self._status_iid, {float(self._off_value)},
             warn_msg=f"micar_base 开关 {self._iid}（{self._attr_name}）关闭指令已发送但状态未确认")
+
+    def _apply_optimistic(self, value: int) -> None:
+        """乐观置值：本地立即置 status_iid 为目标值并通知监听器即时刷新 UI。
+
+        控制指令下发后服务端状态同步有延迟，先本地置意图状态让 UI 立即显示目标状态；
+        后台 confirm 快速刷新（refreshResults <1s）随后用真实状态覆盖，失败走补偿回退。
+        （仅在 api.control 正常返回后调用——控制失败抛异常不会走到这里。）
+        """
+        self.coordinator.properties[self._status_iid] = value
+        self.coordinator.async_update_listeners()
 
     @property
     def device_info(self):

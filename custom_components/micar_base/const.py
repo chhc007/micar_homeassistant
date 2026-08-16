@@ -37,12 +37,14 @@ EP_REFRESH_RESULTS = "/mobile/clientbusiness/IcccCarControlService/refreshResult
 EP_USER_CAR_LIST = "/mobile/clientbusiness/IcccUserAuthService/getUserCarListV3"
 EP_PARKING_SPOT = "/mobile/datasync/widget/parking-spot/query"
 
-# Free 版轮询 iid（空调 + 电量/续航 + 累计里程/档位 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位 + 远程启动状态/时间，22 个）
+# Free 版轮询 iid（空调 + 极速制冷/制热 + 电量/续航 + 累计里程/档位 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位 + 远程启动状态/时间，25 个）
 FREE_IIDS = [
     "7.1.1",   # 空调开关
     "7.1.4",   # 空调除霜状态
     "7.2.3",   # 目标温度
     "7.2.1",   # 车内温度
+    "7.7.13",  # 空调极速制冷状态
+    "7.7.12",  # 空调极速制热状态
     "4.4.1",   # 电量(%)
     "4.4.3",   # 剩余续航(km)
     "2.1.3",   # 门锁状态
@@ -68,6 +70,11 @@ FREE_IIDS = [
 CONTROL_KNOWN = {
     "7.1.1": {"name": "空调开关", "channel": "properties", "values": {0: "关", 1: "开"}},
     "7.2.3": {"name": "目标温度", "channel": "properties", "values": {}},
+    # 空调极速制冷/制热（MAX 模式，properties 通道 0 关/1 开；iid 自身有状态回读，在 FREE_IIDS 订阅列表内）
+    "7.7.13": {"name": "空调极速制冷", "channel": "properties", "platform": "switch",
+               "values": {0: "关", 1: "开"}},
+    "7.7.12": {"name": "空调极速制热", "channel": "properties", "platform": "switch",
+               "values": {0: "关", 1: "开"}},
     "2.1.3": {"name": "车门锁", "channel": "properties", "values": {1: "解锁", 2: "锁定"}},
     # 电动后备箱（properties 通道）：0=关 6=开启；2.8.3 在 FREE_IIDS 订阅列表内。
     # switch 开关（turn_on 开 / turn_off 关）+ 只读 sensor 状态，见 switch.py / sensor.py。

@@ -130,39 +130,46 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             _LOGGER.debug("车位号查询失败（忽略）: %s", err)
         return self.properties
 
-    async def _refresh_iids(self, iids: list[str]) -> bool:
-        """定向刷新：优先 refreshResults 端点（快，<1s），失败回退 subscriptions 全量。
+    async def _refresh_iids(self, iids: list[str], commit: bool = True) -> dict | None:
+        """定向刷新：refreshResults 端点获取 {iid: value} 临时结果。
 
-        成功 → 把返回的 {iid: value} 合并进 self.properties 并 async_update_listeners()
-        通知实体刷新；refreshResults 失败/返回 None → 回退一次 async_request_refresh()
-        （subscriptions 全量兜底）。返回是否刷新成功（任一方式）。
+        commit=True（默认，通用/补偿刷新）：把返回结果合并进 self.properties 并
+        async_update_listeners()；refreshResults 失败/返回 None → 回退一次
+        async_request_refresh()（subscriptions 全量兜底），返回 None。
+        commit=False（confirm 轮询）：仅返回 refreshResults 临时结果 dict（失败/无数据返回
+        None），不写库、不做全量回退——由调用方决定何时落库（确认匹配才 commit，避免覆盖乐观值）。
         """
         try:
             result = await self.hass.async_add_executor_job(self.api.refresh_results, iids)
         except Exception as err:  # noqa: BLE001 - 网络/解析异常统一走回退
             _LOGGER.debug("micar_base refreshResults 异常（iids=%s）: %s", iids, err)
             result = None
+        if not commit:
+            return result
         if result:
             self.properties.update({k: v for k, v in result.items() if v is not None})
             self.async_update_listeners()
-            return True
+            return result
         # 回退：subscriptions 全量兜底（refreshResults 失败或无数据）
         try:
             await self.async_request_refresh()
-            return True
         except UpdateFailed as err:
             _LOGGER.warning("micar_base 定向刷新失败且全量回退失败（iids=%s）: %s", iids, err)
-            return False
+        return None
 
     async def _poll_confirm(self, iid: str, check, retries: int = 3, interval: float = 5.0,
                            refresh_iids: list[str] | None = None,
                            confirm_delay: float = 2.0) -> tuple[bool, int]:
         """控制确认共享轮询：延迟 confirm_delay 后定向刷新检查 → 未达预期再按 interval 轮询至多 retries 次。
 
+        刷新用 refreshResults（commit=False 仅取临时结果，不落库），check 接收临时结果 dict：
+        - 匹配 → 落终态（properties.update + async_update_listeners）
+        - 不匹配 → 不写 properties（保持乐观值，UI 不跳），继续重试
+        - 重试耗尽失败 → 回退最后一次真实结果（None 则保持乐观值，等补偿刷新兜底）
+
         小米服务端收到控制指令后状态同步有延迟（数秒），立即刷新大概率拿到旧值，
         导致 UI 显示与真实状态不符（如解锁后按钮仍显示上锁）。
-        首查前 sleep confirm_delay 让云端状态传播、减少首查失败，总确认时间压到 ~2-3s；
-        刷新优先走 _refresh_iids（refreshResults 定向，快），不再每次全量 subscriptions。
+        首查前 sleep confirm_delay 让云端状态传播、减少首查失败；
         refresh_iids 缺省为 [iid]（纯控制 iid 如车窗 5.5.1 无回读时，由调用方传入
         实际回读 iid 列表，如 WINDOW_POSITION_IIDS）。
         返回 (是否确认, 尝试次数)；失败刷新同样消耗一次尝试（与原行为一致）。
@@ -171,17 +178,22 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             refresh_iids = [iid]
         ok = False
         attempts = 0
+        last_result: dict | None = None
         # 首查延迟：控制指令下发后云端状态传播需数秒，先 sleep 减少首查失败
         if confirm_delay:
             await asyncio.sleep(confirm_delay)
-        await self._refresh_iids(refresh_iids)
+        last_result = await self._refresh_iids(refresh_iids, commit=False)
         attempts = 1
-        ok = check()
+        ok = check(last_result or {})
         while not ok and attempts <= retries:
             await asyncio.sleep(interval)
-            await self._refresh_iids(refresh_iids)
+            last_result = await self._refresh_iids(refresh_iids, commit=False)
             attempts += 1
-            ok = check()
+            ok = check(last_result or {})
+        # 确认匹配 → 落终态；失败耗尽 → 回退最后一次真实结果（None 则不动，等补偿刷新）
+        if last_result:
+            self.properties.update({k: v for k, v in last_result.items() if v is not None})
+            self.async_update_listeners()
         return ok, attempts
 
     async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0,
@@ -203,7 +215,7 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             except (TypeError, ValueError):
                 return val in expected
 
-        ok, _ = await self._poll_confirm(iid, lambda: _matches(self.properties.get(iid)),
+        ok, _ = await self._poll_confirm(iid, lambda result: _matches((result or {}).get(iid)),
                                          retries, interval, refresh_iids=refresh_iids,
                                          confirm_delay=confirm_delay)
         if not ok:
@@ -249,14 +261,20 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             self.hass.async_call_later(delay, _fire)
 
     def window_position_state(self) -> str | None:
-        """由四车窗位置百分比（5.1.1-5.4.1）推导车窗控制状态：全关/通风/全开。
+        """由四车窗位置百分比（5.1.1-5.4.1）推导车窗控制状态（读 self.properties 快照）。"""
+        return self._window_position_state_from(self.properties)
+
+    @staticmethod
+    def _window_position_state_from(props: dict) -> str | None:
+        """由 {iid: value} 快照推导车窗控制状态：全关/通风/全开。
 
         任一车窗缺失、非法、或四窗未全部落入同一区间（如单窗半开）→ None（不误导）。
+        props 为 self.properties 或 confirm 临时结果快照。
         区间见 WINDOW_POSITION_BANDS。
         """
         vals = []
         for iid in WINDOW_POSITION_IIDS:
-            v = self.properties.get(iid)
+            v = props.get(iid)
             # 仅接受数值型（订阅返回 JSON number）；缺失/非数值 → 不判定
             if not isinstance(v, (int, float)):
                 return None
@@ -276,7 +294,8 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             return False
         label = WINDOW_POSITION_LABELS[position]
         ok, _ = await self._poll_confirm(
-            "5.5.1", lambda: self.window_position_state() == label, retries, interval,
+            "5.5.1", lambda result: self._window_position_state_from(result or {}) == label,
+            retries, interval,
             refresh_iids=list(WINDOW_POSITION_IIDS), confirm_delay=confirm_delay)
         if not ok:
             # 车窗确认失败同样走补偿刷新兜底（与 async_confirm_control 一致）
