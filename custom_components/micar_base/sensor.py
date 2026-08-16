@@ -34,6 +34,26 @@ FREE_SENSORS = [
     ("2.8.3", "backbox_status", "电动后备箱状态", None, None),
 ]
 
+# 胎压 4 个 iid（值量级跟随 9.5.1 单位字段变化，需按单位统一换算成 bar）
+TIRE_PRESSURE_IIDS = {"9.1.1", "9.2.1", "9.3.1", "9.4.1"}
+# 胎压单位枚举 TyrePressureValueUnit（9.5.1）：KPA=0, BAR=1, PSI=2, UNKNOWN=99
+# 各原始单位 → bar 的除数：kPa/100, bar/1, psi/14.5038
+TIRE_PRESSURE_DIVISOR = {0: 100.0, 1: 1.0, 2: 14.5038}
+
+
+def _tire_pressure_to_bar(val, unit) -> float:
+    """胎压原始值按 9.5.1 单位字段统一换算成 bar；单位缺失/未知时原样返回（兼容旧 BAR 数据）。"""
+    v = float(val)
+    divisor = None
+    if unit is not None:
+        try:
+            divisor = TIRE_PRESSURE_DIVISOR.get(int(float(unit)))
+        except (TypeError, ValueError):
+            divisor = None
+    if divisor is None:
+        return round(v, 1)
+    return round(v / divisor, 1)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator: MicarDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
@@ -60,6 +80,12 @@ class MicarSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         val = self.coordinator.properties.get(self._iid)
+        # 胎压（9.1.1~9.4.1）：值量级跟随 9.5.1 单位字段，统一换算成 bar
+        if val is not None and self._iid in TIRE_PRESSURE_IIDS:
+            try:
+                return _tire_pressure_to_bar(val, self.coordinator.properties.get("9.5.1"))
+            except (TypeError, ValueError):
+                return None
         # 13.11.5 startLastTime = 毫秒时间戳 → 北京时间显示
         if val is not None and self._iid == "13.11.5":
             try:

@@ -37,7 +37,7 @@ EP_REFRESH_RESULTS = "/mobile/clientbusiness/IcccCarControlService/refreshResult
 EP_USER_CAR_LIST = "/mobile/clientbusiness/IcccUserAuthService/getUserCarListV3"
 EP_PARKING_SPOT = "/mobile/datasync/widget/parking-spot/query"
 
-# Free 版轮询 iid（空调 + 极速制冷/制热 + 电量/续航 + 累计里程/档位 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位 + 远程启动状态/时间，25 个）
+# Free 版轮询 iid（空调 + 极速制冷/制热 + 电量/续航 + 累计里程/档位 + 门锁 + 胎压 + 车窗 + 除霜状态 + GPS 定位 + 远程启动状态/时间，26 个）
 FREE_IIDS = [
     "7.1.1",   # 空调开关
     "7.1.4",   # 空调除霜状态
@@ -64,6 +64,7 @@ FREE_IIDS = [
     "13.6.1",  # 档位(P/R/N/D)
     "13.11.4", # 远程启动状态(0=未启动 1=已启动)
     "13.11.5", # 最近启动时间(毫秒时间戳)
+    "9.5.1",   # 胎压单位（KPA=0/BAR=1/PSI=2，用于胎压值换算）
 ]
 
 # 控制字典（仅 Free 版公开的控制；支持 api.control 路由）
