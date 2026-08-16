@@ -37,8 +37,12 @@ FREE_SENSORS = [
 # 胎压 4 个 iid（值量级跟随 9.5.1 单位字段变化，需按单位统一换算成 bar）
 TIRE_PRESSURE_IIDS = {"9.1.1", "9.2.1", "9.3.1", "9.4.1"}
 # 胎压单位枚举 TyrePressureValueUnit（9.5.1）：KPA=0, BAR=1, PSI=2, UNKNOWN=99
-# 各原始单位 → bar 的除数：kPa/100, bar/1, psi/14.5038
-TIRE_PRESSURE_DIVISOR = {0: 100.0, 1: 1.0, 2: 14.5038}
+# 各原始单位 → bar 的除数：
+#   KPA=0：API 返回 Pa（帕斯卡）量级（如 270000）→ /1000 得 kPa（270）→ /100000 得 bar（2.7）
+#          （用户实测确认 2026-08-16："kPa 要除 1000"）
+#   BAR=1：API 返回 bar 值，原样
+#   PSI=2：推断 API 返回 psi 显示值（如 39.16）→ /14.5038 得 bar（⚠️待 PSI 用户实测校准）
+TIRE_PRESSURE_DIVISOR = {0: 100000.0, 1: 1.0, 2: 14.5038}
 
 
 def _tire_pressure_to_bar(val, unit) -> float:
