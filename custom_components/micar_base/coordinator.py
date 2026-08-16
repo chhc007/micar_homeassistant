@@ -185,8 +185,13 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         return ok, attempts
 
     async def async_confirm_control(self, iid: str, expected: set, retries: int = 3, interval: float = 5.0,
-                                    confirm_delay: float = 2.0) -> bool:
-        """控制操作后确认生效：延迟 confirm_delay 后刷新检查 → 未达预期再轮询重试。"""
+                                    confirm_delay: float = 2.0,
+                                    refresh_iids: list[str] | None = None) -> bool:
+        """控制操作后确认生效：延迟 confirm_delay 后刷新检查 → 未达预期再轮询重试。
+
+        refresh_iids 为额外一并刷新的 iid 列表（期望值仍只匹配 iid 对应的值，
+        如远程启动刷新 13.11.4 状态 + 13.11.5 最近启动时间，仅 13.11.4 参与匹配）。
+        """
 
         def _matches(val: object) -> bool:
             if val is None:
@@ -199,10 +204,11 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 return val in expected
 
         ok, _ = await self._poll_confirm(iid, lambda: _matches(self.properties.get(iid)),
-                                         retries, interval, confirm_delay=confirm_delay)
+                                         retries, interval, refresh_iids=refresh_iids,
+                                         confirm_delay=confirm_delay)
         if not ok:
             # 确认失败 = 云端状态同步慢，用补偿刷新兜底（保证实体最迟约 1 分钟内更新到真实状态）
-            self._last_confirm_iids = [iid]
+            self._last_confirm_iids = list(refresh_iids) if refresh_iids else [iid]
             self.schedule_control_refresh()
         return ok
 
@@ -278,16 +284,18 @@ class MicarDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             self.schedule_control_refresh()
         return ok
 
-    def schedule_confirm_control(self, iid: str, expected: set, warn_msg: str | None = None) -> None:
+    def schedule_confirm_control(self, iid: str, expected: set, warn_msg: str | None = None,
+                                 refresh_iids: list[str] | None = None) -> None:
         """后台确认控制生效（不阻塞服务方法返回）。
 
         服务方法调用 api.control 后立即返回，确认放到后台任务执行（async_confirm_control）；
         确认失败时记录 warning（若提供 warn_msg），补偿刷新兜底仍由 async_confirm_control
         内部处理。
+        refresh_iids 额外一并刷新的 iid（期望值仅匹配 iid，如远程启动额外刷新最近启动时间）。
         """
 
         async def _confirm() -> None:
-            ok = await self.async_confirm_control(iid, expected)
+            ok = await self.async_confirm_control(iid, expected, refresh_iids=refresh_iids)
             if not ok and warn_msg:
                 _LOGGER.warning(warn_msg)
 
