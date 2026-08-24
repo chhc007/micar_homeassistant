@@ -29,7 +29,7 @@
       "invalid_device_id": "Invalid Device ID: it must match the Xiaomi Car app on your phone (letters/digits/-/_ characters, e.g. YSFTVmttfxS0t_G-). See README for how to find it."
     },
     "abort": {
-      "already_configured": "Car {car} is already configured. Choose another car to add it."
+      "already_configured": "This vehicle is already configured. Choose another car to add it."
     }
   }
 }

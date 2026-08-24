@@ -29,7 +29,7 @@
       "invalid_device_id": "设备 ID 格式不正确：需与手机小米汽车 App 一致（字母/数字/-/_ 组合，如 YSFTVmttfxS0t_G-），获取方法见 README 抓包教程。"
     },
     "abort": {
-      "already_configured": "车辆 {car} 已添加过，请勿重复添加（如需添加其他车辆，请在选车页选择另一辆）"
+      "already_configured": "该车辆已添加过，请勿重复添加（如需添加其他车辆，请在选车页选择另一辆）"
     }
   }
 }

@@ -229,10 +229,7 @@ class MicarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         vid = car.get("vid", "")
         for entry in self._async_current_entries():
             if entry.data.get(CONF_VID) == vid:
-                return self.async_abort(
-                    reason="already_configured",
-                    description_placeholders={"car": self._car_label(car)},
-                )
+                return self.async_abort(reason="already_configured")
         self._api.vid = vid
         car_model = car.get("carModel", "") or car.get("carName", "")
         self._api.car_model = car_model
